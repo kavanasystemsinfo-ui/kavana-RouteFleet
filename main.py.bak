@@ -1,0 +1,282 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+from typing import List, Optional
+import math
+import asyncio
+import httpx
+from ortools.constraint_solver import routing_enums_pb2
+from ortools.constraint_solver import pywrapcp
+
+app = FastAPI(title="Kavana Logistic", description="Optimización de rutas de reparto última milla")
+
+# --- Modelos de datos ---
+class Stop(BaseModel):
+    cliente: str = Field(..., example="Mercado Central")
+    direccion: str = Field(..., example="Calle Falsa 123, Ciudad")
+    horario_limite: Optional[str] = Field(None, example="14:30")  # formato HH:SS
+    # se puede agregar más campos como servicio_time, carga, etc.
+
+class RouteRequest(BaseModel):
+    paradas: List[Stop] = Field(..., min_items=1, description="Lista de paradas a visitar")
+    depot: Optional[str] = Field(None, example="Depósito Principal, Ciudad")  # si no se proporciona, se usa la primera parada como depot
+    vehicle_count: int = Field(1, ge=1, description="Número de vehículos disponibles")
+
+class RouteResponse(BaseModel):
+    orden_optimizado: List[int]  # índices de la lista original de paradas
+    distancia_total_km: float
+    tiempo_total_horas: float
+    detalles: List[dict]  # por parada: arrival_time, etc.
+
+# --- Funciones auxiliares ---
+def haversine(lat1, lon1, lat2, lon2):
+    """Calcula la distancia en kilómetros entre dos puntos en la Tierra."""
+    R = 6371.0  # Radio de la Tierra en km
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+async def geocode_address(address: str, client: httpx.AsyncClient) -> Optional[tuple]:
+    """Usa Nominatim de OpenStreetMap para obtener lat, lon de una dirección."""
+    try:
+        resp = await client.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": address, "format": "json", "limit": 1},
+            headers={"User-Agent": "KavanaLogistic/1.0 (https://tu-dominio.com)"},
+            timeout=10.0,
+        )
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        if not data:
+            return None
+        lat = float(data[0]["lat"])
+        lon = float(data[0]["lon"])
+        return (lat, lon)
+    except Exception:
+        return None
+
+def parse_time(t: str) -> int:
+    """Convierte HH:MM a minutos desde medianoche."""
+    try:
+        h, m = map(int, t.split(":"))
+        return h * 60 + m
+    except Exception:
+        # Si no se puede parsear, asumimos un tiempo muy amplio (p.ej. fin de día)
+        return 24 * 60  # 23:59
+
+# --- Endpoints ---
+@app.get("/")
+async def root():
+    return {"message": "Kavana Logistic API está corriendo"}
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
+@app.post("/optimizar-ruta", response_model=RouteResponse)
+async def optimizar_ruta(req: RouteRequest):
+    """
+    Optimiza la ruta para un conjunto de paradas usando:
+    1. Geocodificación (Nominatim)
+    2. Matriz de distancias (haversine como aproximación)
+    3. OR-Tools para resolver VRP con ventanas de tiempo
+    """
+    if not req.paradas:
+        raise HTTPException(status_code=400, detail="Se debe proporcionar al menos una parada")
+
+    # Preparar lista de direcciones para geocodificar
+    direcciones = [p.direccion for p in req.paradas]
+    depot_addr = req.depot if req.depot else direcciones[0]
+
+    async with httpx.AsyncClient() as client:
+        # Geocodificar todas las paradas + depot
+        geocoding_tasks = [geocode_address(addr, client) for addr in direcciones]
+        geocoding_results = await asyncio.gather(*geocoding_tasks)
+        depot_geocode = await geocode_address(depot_addr, client)
+
+    # Verificar que todas las geocodificaciones tuvieron éxito
+    coords = []
+    for i, (stop, geo) in enumerate(zip(req.paradas, geocoding_results)):
+        if geo is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"No se pudo geocodificar la dirección: '{stop.direccion}' (índice {i})"
+            )
+        coords.append(geo)
+
+    if depot_geocode is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"No se pudo geocodificar el depot: '{depot_addr}'"
+        )
+
+    # Insertar el depot al inicio de la lista de coordenadas (si no está ya en la lista)
+    all_coords = [depot_geocode] + coords
+    n_locations = len(all_coords)  # depot + n paradas
+
+    # Calcular matriz de distancias (haversine) y tiempos (asumiendo velocidad promedio 40 km/h)
+    distance_meters = [[0] * n_locations for _ in range(n_locations)]
+    time_seconds = [[0] * n_locations for _ in range(n_locations)]
+    avg_speed_kmh = 40.0  # velocidad promedio en ciudad
+    for i in range(n_locations):
+        lat1, lon1 = all_coords[i]
+        for j in range(n_locations):
+            if i == j:
+                distance_meters[i][j] = 0
+                time_seconds[i][j] = 0
+            else:
+                lat2, lon2 = all_coords[j]
+                dist_km = haversine(lat1, lon1, lat2, lon2)
+                distance_meters[i][j] = dist_km * 1000  # metros
+                time_seconds[i][j] = (dist_km / avg_speed_kmh) * 3600  # segundos
+
+    # Preparar datos para OR-Tools
+    data = {}
+    data["distance_matrix"] = distance_meters
+    data["time_matrix"] = time_seconds
+    data["num_vehicles"] = req.vehicle_count
+    data["depot"] = 0  # el depot está en índice 0
+
+    # Ventanas de tiempo: Convertir horario_limite a segundos desde comienzo del día
+    # Asumimos que el día comienza a las 06:00 (6:00 AM) y termina a las 22:00 (10:00 PM)
+    # Si no se proporciona horario, usamos un rango amplio.
+    time_windows = []
+    # Ventana para el depot: todo el día (0 a 24*3600)
+    time_windows.append((0, 24 * 60 * 60))
+    for stop in req.paradas:
+        if stop.horario_limite:
+            try:
+                h, m = map(int, stop.horario_limite.split(":"))
+                limite_segundos = h * 3600 + m * 60
+                # Vamos a establecer una ventana desde 08:00 hasta el límite
+                inicio_segundos = 8 * 3600  # 08:00
+                if limite_segundos < inicio_segundos:
+                    inicio_segundos = 0  # si el límite es antes de 08:00, abrir desde medianoche
+                time_windows.append((inicio_segundos, limite_segundos))
+            except Exception:
+                # Si falla el parsing, dar ventana amplia
+                time_windows.append((0, 24 * 60 * 60))
+        else:
+            time_windows.append((0, 24 * 60 * 60))
+    data["time_windows"] = time_windows
+
+    # Crear el modelo de routing
+    manager = pywrapcp.RoutingIndexManager(
+        len(data["distance_matrix"]),
+        data["num_vehicles"],
+        data["depot"],
+    )
+    routing = pywrapcp.RoutingModel(manager)
+
+    # Definir la función de costo (distancia)
+    def distance_callback(from_index, to_index):
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return data["distance_matrix"][from_node][to_node]
+
+    transit_callback_index = routing.RegisterTransitCallback(distance_callback)
+    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+
+    # Añadir restricciones de tiempo (tiempo de viaje + tiempo de servicio)
+    def time_callback(from_index, to_index):
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return data["time_matrix"][from_node][to_node]
+
+    time_callback_index = routing.RegisterTransitCallback(time_callback)
+    time = "Time"
+    routing.AddDimension(
+        time_callback_index,
+        30 * 60,  # permitir hasta 30 minutos de espera
+        24 * 60 * 60,  # máximo tiempo por ruta (24 horas)
+        False,  # No forzar que el acumulado en el inicio sea cero
+        time,
+    )
+    time_dimension = routing.GetDimensionOrDie(time)
+
+    # Aplicar ventanas de tiempo
+    for location_idx, time_window in enumerate(data["time_windows"]):
+        if location_idx == data["depot"]:
+            continue
+        index = manager.NodeToIndex(location_idx)
+        time_dimension.CumulVar(index).SetRange(time_window[0], time_window[1])
+    # Ventana para el depot: inicio y fin del horizonte
+    index = manager.NodeToIndex(data["depot"])
+    time_dimension.CumulVar(index).SetRange(time_windows[0][0], time_windows[0][1])
+
+    # Configurar parámetros de búsqueda
+    search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+    search_parameters.first_solution_strategy = (
+        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+    )
+    search_parameters.local_search_metaheuristic = (
+        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+    )
+    search_parameters.time_limit.seconds = 30
+
+    # Resolver
+    assignment = routing.SolveWithParameters(search_parameters)
+
+    if not assignment:
+        raise HTTPException(status_code=500, detail="No se encontró solución para la ruta")
+
+    # Extraer la solución para el vehículo 0 (asumimos un solo vehículo por simplicidad)
+    index = routing.Start(0)
+    route_indices = []
+    route_dist = 0
+    route_time = 0
+    while not routing.IsEnd(index):
+        node_index = manager.IndexToNode(index)
+        route_indices.append(node_index)
+        previous_index = index
+        index = assignment.Value(routing.NextVar(index))
+        route_dist += routing.GetArcCostForVehicle(previous_index, index, 0)
+        route_time += time_dimension.CumulVar(index).Value() - time_dimension.CumulVar(previous_index).Value()
+    # Añadir el nodo final (depot)
+    route_indices.append(manager.IndexToNode(index))
+
+    # Convertir índices de nodos a índices de paradas originales (excluyendo depot)
+    # Nuestro arreglo: [depot, parada0, parada1, ...]
+    # Los índices en route_indices incluyen el depot (0) en alguna posición.
+    # Queremos el orden de paradas visitadas (sin el depot inicial/final).
+    stop_order = [node - 1 for node in route_indices if node != 0]  # restamos 1 para saltar el depot
+
+    # Calcular distancia y tiempo total en unidades legibles
+    total_distance_m = route_dist
+    total_distance_km = total_distance_m / 1000.0
+    total_time_s = route_time
+    total_time_h = total_time_s / 3600.0
+
+    # Construir detalles por parada (opcional)
+    detalles = []
+    for seq, node_idx in enumerate(route_indices):
+        if node_idx == 0:
+            detalles.append({
+                "tipo": "depot",
+                "orden": seq,
+                "direccion": depot_addr,
+                "arrival_time_seg": time_dimension.CumulVar(assignment.Value(route.NextVar(manager.NodeToIndex(node_idx)))) if seq > 0 else 0,
+            })
+        else:
+            stop_idx = node_idx - 1
+            stop = req.paradas[stop_idx]
+            detalles.append({
+                "tipo": "parada",
+                "orden": seq,
+                "clave_original": stop_idx,
+                "cliente": stop.cliente,
+                "direccion": stop.direccion,
+                "horario_limite": stop.horario_limite,
+                "arrival_time_seg": time_dimension.CumulVar(assignment.Value(route.NextVar(manager.NodeToIndex(node_idx)))) if seq < len(route_indices)-1 else None,
+            })
+
+    return RouteResponse(
+        orden_optimizado=stop_order,
+        distancia_total_km=round(total_distance_km, 2),
+        tiempo_total_horas=round(total_time_h, 2),
+        detalles=detalles,
+    )

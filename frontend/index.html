@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Kavana Logistic - Optimizador de Rutas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-sA+e2K0JpFhYkz6jK+9xVj5eG0xV0vXy4bX1b6g5G5I="
+          crossorigin=""/>
+    <style>
+        #map { height: 400px; }
+        .container { max-width: 800px; margin: 20px auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea, select { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; }
+        .tab { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 17px;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #ccc;
+        }
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Kavana Logistic</h1>
+    <p>Optimización de rutas de reparto última milla</p>
+
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'Manual')">Escribir Manual</button>
+        <button class="tablinks" onclick="openTab(event, 'Archivo')">Subir Ruta</button>
+    </div>
+
+    <div id="Manual" class="tabcontent" style="display:block;">
+        <div class="form-group">
+            <label for="addresses">Direcciones (una por línea, formato: Cliente, Dirección, HH:MM)</label>
+            <textarea id="addresses" rows="4" placeholder="Ejemplo:
+Mercado Central, Cra 7 # 26-10, Bogotá, 10:00
+Supermercado XXL, Av Siempre Viva 123, Bogotá, 11:00"></textarea>
+        </div>
+    </div>
+
+    <div id="Archivo" class="tabcontent">
+        <div class="form-group">
+            <label for="fileInput">Seleccione un archivo (PDF, DOCX, XLSX, XLS, CSV, TXT)</label>
+            <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt">
+            <small>Formatos soportados: PDF, Word, Excel, CSV, Texto plano</small>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="depot">Dirección del depósito (opcional, si no se proporciona se usa la primera parada):</label>
+        <input type="text" id="depot" placeholder="Ej: Depósito Principal, Ciudad">
+    </div>
+
+    <div class="form-group">
+        <label for="vehicles">Número de vehículos:</label>
+        <input type="number" id="vehicles" value="1" min="1">
+    </div>
+
+    <button id="optimizeBtn">Optimizar Ruta</button>
+    <button id="uploadBtn" style="margin-left:10px;">Subir Ruta</button>
+
+    <div id="result" class="result" style="display:none;">
+        <h2>Resultado</h2>
+        <p><strong>Distancia total:</strong> <span id="totalDistance"></span> km</p>
+        <p><strong>Tiempo total estimado:</strong> <span id="totalTime"></span> horas</p>
+        <p><strong>Orden óptimo de visita:</strong> <span id="routeOrder"></span></p>
+    </div>
+
+    <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-o9N1j8djG0z5Z6uJ+zV6K7Y6Y6c6c6c6c6c6c6c6c6c"
+        crossorigin=""></script>
+<script>
+    const map = L.map('map').setView([4.60971, -74.08175], 13); // Bogotá center as default
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
+    }
+
+    document.getElementById('optimizeBtn').addEventListener('click', async () => {
+        const addressesText = document.getElementById('addresses').value.trim();
+        const depot = document.getElementById('depot').value.trim();
+        const vehicles = parseInt(document.getElementById('vehicles').value) || 1;
+
+        if (!addressesText) {
+            alert('Por favor ingrese al menos una dirección');
+            return;
+        }
+
+        // Show loading
+        document.getElementById('optimizeBtn').disabled = true;
+        document.getElementById('optimizeBtn').textContent = 'Optimizando...';
+
+        try {
+            const response = await fetch('/api/optimizar-ruta', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    document_text: addressesText,
+                    depot: depot || null,
+                    vehicle_count: vehicles
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Error en el servidor');
+            }
+
+            const result = await response.json();
+
+            // Update result UI
+            document.getElementById('totalDistance').textContent = result.distancia_total_km;
+            document.getElementById('totalTime').textContent = result.tiempo_total_horas;
+            document.getElementById('routeOrder').textContent = result.orden_optimizado.map(i => i + 1).join(' → ');
+            document.getElementById('result').style.display = 'block';
+
+            // Clear previous markers and polyline
+            if (window.currentLayer) {
+                map.removeLayer(window.currentLayer);
+            }
+            if (window.markers) {
+                window.markers.forEach(m => map.removeLayer(m));
+            }
+            window.markers = [];
+
+            // We need coordinates to show on-map and requested to implement.
+            // For simplicity, we'll just show a message that mapping requires coordinates.
+            alert('Para ver la ruta en el mapa, necesitaremos implementar la geocodificación del lado del cliente o devolver coordenadas desde el backend. Por ahora, solo se muestra el resultado numérico.');
+
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            document.getElementById('optimizeBtn').disabled = false;
+            document.getElementById('optimizeBtn').textContent = 'Optimizar Ruta';
+        }
+    });
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+        const fileInput = document.getElementById('fileInput');
+        const depot = document.getElementById('depot').value.trim();
+        const vehicles = parseInt(document.getElementById('vehicles').value) || 1;
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert('Por favor seleccione un archivo');
+            return;
+        }
+
+        const file = fileInput.files[0];
+
+        // Show loading
+        document.getElementById('uploadBtn').disabled = true;
+        document.getElementById('uploadBtn').textContent = 'Procesando...';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            if (depot) {
+                formData.append('depot', depot);
+            }
+            formData.append('vehicle_count', vehicles);
+
+            const response = await fetch('/api/optimizar-archivo', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Error en el servidor');
+            }
+
+            const result = await response.json();
+
+            // Update result UI
+            document.getElementById('totalDistance').textContent = result.distancia_total_km;
+            document.getElementById('totalTime').textContent = result.tiempo_total_horas;
+            document.getElementById('routeOrder').textContent = result.orden_optimizado.map(i => i + 1).join(' → ');
+            document.getElementById('result').style.display = 'block';
+
+            // Clear previous markers and polyline
+            if (window.currentLayer) {
+                map.removeLayer(window.currentLayer);
+            }
+            if (window.markers) {
+                window.markers.forEach(m => map.removeLayer(m));
+            }
+            window.markers = [];
+
+            alert('Para ver la ruta en el mapa, necesitaremos implementar la geocodificación del lado del cliente o devolver coordenadas desde el backend. Por ahora, solo se muestra el resultado numérico.');
+
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            document.getElementById('uploadBtn').disabled = false;
+            document.getElementById('uploadBtn').textContent = 'Subir Ruta';
+        }
+    });
+</script>
+</body>
+</html>

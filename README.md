@@ -1,8 +1,8 @@
-# Kavana Logistic v1.0
+# Kavana Logistics v1.0
 
-> **Optimización de Rutas de Reparto con Inteligencia Artificial**
+> **Optimización de Rutas de Reparto de Última Milla con Inteligencia Artificial**
 >
-> Kavana Logistic es un módulo autónomo diseñado para resolver la ineficiencia operativa en PYMEs que gestionan flotas locales de reparto. Filosofía **"Zero Data Entry"**: el operario sube una foto de un albarán y la IA genera la ruta óptima en segundos.
+> App independiente para repartidores autónomos y flotas locales. Optimiza rutas de entrega con un solo clic: sube una foto del albarán y el sistema calcula la ruta más corta usando OR-Tools y OpenStreetMap. **Zero Data Entry**: el repartidor no teclea nada.
 
 ## 📋 Estado del Proyecto
 

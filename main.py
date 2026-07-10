@@ -13,8 +13,23 @@ from ortools.constraint_solver import pywrapcp
 
 from models import Stop, RouteRequest, RouteResponse
 from extract import extract_stops_from_text, extract_stops_from_image
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import pathlib
 
 app = FastAPI(title="Kavana Logistic", description="Optimización de rutas de reparto con ventanas de tiempo")
+
+# Serve frontend
+frontend_path = pathlib.Path(__file__).parent / "frontend"
+if frontend_path.exists():
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+
+@app.get("/app")
+async def serve_frontend():
+    index = frontend_path / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return {"error": "Frontend not found"}
 
 # Simple in-memory cache for geocoding results
 _geocode_cache: Dict[str, Optional[Tuple[float, float]]] = {}

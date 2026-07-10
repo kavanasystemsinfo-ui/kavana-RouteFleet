@@ -81,18 +81,11 @@ curl -X POST http://localhost:8002/api/optimizar-ruta \
   }'
 ```
 
-### Optimizar ruta con lista estructurada
+### Optimizar ruta con archivo (PDF, imagen)
 ```bash
-curl -X POST http://localhost:8002/api/optimizar-ruta \
-  -H "Content-Type: application/json" \
-  -d '{
-    "paradas": [
-      {"cliente":"Bar Pepe","direccion":"Calle Colon 5, Valencia","horario_limite":"10:00"},
-      {"cliente":"Oficina","direccion":"Av. Blasco Ibanez 20, Valencia","horario_limite":"12:00"}
-    ],
-    "depot": "Poligono Fuente del Jarro, Paterna",
-    "vehicle_count": 2
-  }'
+curl -X POST http://localhost:8002/api/optimizar-archivo \
+  -F "file=@albaran.pdf" \
+  -F "depot=Poligono Fuente del Jarro, Paterna"
 ```
 
 ### Respuesta
@@ -108,18 +101,35 @@ curl -X POST http://localhost:8002/api/optimizar-ruta \
 }
 ```
 
+## 📱 Frontend PWA
+
+Interfaz mobile-first con 3 modos de entrada:
+
+| Modo | Descripción |
+|------|-------------|
+| 📝 **Texto Libre** | Pega el texto de un albarán y la IA extrae las paradas |
+| 📸 **Foto / PDF** | Sube una foto o PDF del albarán — extracción automática |
+| 📋 **Manual** | Añade paradas una a una con dirección y hora |
+
+### Características
+- 🏭 **Depósito global**: se guarda en el navegador (localStorage), no hace falta escribirlo cada vez
+- 🗺️ **Google Maps**: botón para buscar la dirección de salida en el mapa
+- 📊 **Resultados**: ruta optimizada con km totales, horas estimadas y orden de paradas
+- 🎨 **Diseño**: dark theme KAVANA (#FF6B35), responsive, sin dependencias externas
+
 ## 📄 Roadmap
 
-- [x] API de optimización con OR-Tools
+- [x] API de optimización con OR-Tools (VRP)
 - [x] Geocodificación gratuita con OpenStreetMap
 - [x] Extracción de texto con LLM (OpenRouter)
 - [x] Procesamiento de imágenes de albaranes
+- [x] Parser inteligente multi-formato (PDF, texto, CSV)
 - [x] 8 tests unitarios pasando (TDD)
-- [ ] Frontend PWA funcional completo
-- [ ] Dockerización con restart automático
-- [ ] Integración con WhatsApp para notificaciones de ruta
-- [ ] Exportación de hoja de ruta PDF para el repartidor
-- [ ] Dashboard de histórico de rutas y estadísticas
+- [x] Frontend PWA con 3 modos de entrada
+- [x] Depósito global con persistencia en localStorage
+- [x] Google Maps picker para dirección de salida
+- [ ] Integración con WhatsApp para enviar ruta al repartidor
+- [ ] Exportación de hoja de ruta PDF
 
 ---
 

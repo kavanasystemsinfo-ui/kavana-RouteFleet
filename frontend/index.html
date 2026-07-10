@@ -1,241 +1,472 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8" />
-    <title>Kavana Logistic - Optimizador de Rutas</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-sA+e2K0JpFhYkz6jK+9xVj5eG0xV0vXy4bX1b6g5G5I="
-          crossorigin=""/>
-    <style>
-        #map { height: 400px; }
-        .container { max-width: 800px; margin: 20px auto; padding: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, textarea, select { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        .result { margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; }
-        .tab { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; }
-        .tab button {
-            background-color: inherit;
-            float: left;
-            border: none;
-            outline: none;
-            cursor: pointer;
-            padding: 14px 16px;
-            transition: 0.3s;
-            font-size: 17px;
-        }
-        .tab button:hover {
-            background-color: #ddd;
-        }
-        .tab button.active {
-            background-color: #ccc;
-        }
-        .tabcontent {
-            display: none;
-            padding: 6px 12px;
-            border: 1px solid #ccc;
-            border-top: none;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>KAVANA Logistic</title>
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="manifest.json">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --card: #141416;
+    --border: #1e1e22;
+    --text: #e4e4e7;
+    --muted: #71717a;
+    --orange: #FF6B35;
+    --orange-glow: rgba(255,107,53,0.15);
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 800px; margin: 0 auto; padding: 16px 20px 40px; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 20px 0; border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .logo {
+    width: 42px; height: 42px; background: var(--orange);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 900; color: #fff;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header span { color: var(--orange); }
+  .header .tagline { font-size: 12px; color: var(--muted); }
+
+  /* Cards */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px; margin-bottom: 16px;
+    transition: border-color .2s;
+  }
+  .card:hover { border-color: #2a2a30; }
+  .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .card .sub { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--bg); border-radius: var(--radius-sm); padding: 4px; }
+  .tab {
+    flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 500;
+    border: none; background: transparent; color: var(--muted); border-radius: 6px;
+    cursor: pointer; transition: all .2s;
+  }
+  .tab.active { background: var(--orange); color: #fff; }
+
+  /* Form */
+  textarea, input[type="text"], input[type="number"] {
+    width: 100%; padding: 12px 14px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-size: 14px; font-family: inherit;
+    resize: vertical; min-height: 100px;
+    transition: border-color .2s;
+  }
+  textarea:focus, input:focus { outline: none; border-color: var(--orange); }
+  textarea::placeholder, input::placeholder { color: #3f3f46; }
+
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 48px 24px; text-align: center; cursor: pointer;
+    transition: all .2s; background: var(--bg);
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--orange); background: var(--orange-glow); }
+  .upload-zone .icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-zone p { color: var(--muted); font-size: 14px; }
+  .upload-zone .browse { color: var(--orange); font-weight: 600; text-decoration: underline; }
+  .preview-img { max-width: 100%; max-height: 200px; border-radius: var(--radius-sm); margin-top: 12px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s;
+  }
+  .btn-primary { background: var(--orange); color: #fff; width: 100%; justify-content: center; margin-top: 12px; }
+  .btn-primary:hover { background: #e55a2b; transform: translateY(-1px); box-shadow: 0 4px 16px var(--orange-glow); }
+  .btn-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-primary .spinner { display: none; width: 18px; height: 18px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .6s linear infinite; }
+  .btn-primary.loading .spinner { display: block; }
+  .btn-primary.loading .label { display: none; }
+
+  /* Results */
+  .route-list { list-style: none; }
+  .route-stop {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); margin-bottom: 8px;
+    background: var(--bg); transition: all .2s;
+  }
+  .stop-num {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; flex-shrink: 0;
+    background: var(--orange); color: #fff;
+  }
+  .stop-num.depot { background: #3b3b40; }
+  .stop-info { flex: 1; min-width: 0; }
+  .stop-info .name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stop-info .addr { font-size: 12px; color: var(--muted); }
+  .stop-time { font-size: 13px; font-weight: 600; color: var(--orange); white-space: nowrap; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 16px; text-align: center;
+  }
+  .stat .value { font-size: 28px; font-weight: 800; }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stat .value.km { color: var(--blue); }
+  .stat .value.hr { color: var(--green); }
+  .stat .value.stops { color: var(--orange); }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty .icon { font-size: 48px; margin-bottom: 12px; opacity: .5; }
+
+  /* Utility */
+  .hidden { display: none !important; }
+  .error { background: #450a0a; color: #fca5a5; padding: 12px 16px; border-radius: var(--radius-sm); margin-top: 12px; font-size: 13px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 480px) {
+    .app { padding: 12px 14px 32px; }
+    .card { padding: 16px; }
+    .header h1 { font-size: 18px; }
+  }
+</style>
 </head>
 <body>
-<div class="container">
-    <h1>Kavana Logistic</h1>
-    <p>Optimización de rutas de reparto última milla</p>
 
-    <div class="tab">
-        <button class="tablinks active" onclick="openTab(event, 'Manual')">Escribir Manual</button>
-        <button class="tablinks" onclick="openTab(event, 'Archivo')">Subir Ruta</button>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">KL</div>
+    <div>
+      <h1>KAVANA <span>Logistic</span></h1>
+      <p class="tagline">Optimización de rutas con IA · Zero Data Entry</p>
+    </div>
+  </div>
+
+  <!-- Input Tabs -->
+  <div class="card">
+    <h2>🚚 Nueva Ruta de Reparto</h2>
+    <p class="sub">Sube una foto del albarán o escribe las paradas manualmente</p>
+
+    <!-- Depot selector -->
+    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">🏭 Dirección de salida (depósito)</label>
+        <input type="text" id="depotGlobal" placeholder="Ej: Polígono Fuente del Jarro, Paterna, Valencia" style="min-height:auto;width:100%;"
+          onchange="saveDepot()">
+      </div>
+      <button class="btn" style="background:var(--border);color:var(--text);white-space:nowrap;min-height:auto;padding:12px 16px;"
+        onclick="openMapPicker()">📍 Elegir en mapa</button>
+      <button id="depotPin" class="btn" style="background:var(--orange);color:#fff;white-space:nowrap;min-height:auto;padding:12px 16px;display:none;"
+        onclick="clearDepot()" title="Quitar predeterminada">📌 Predeterminada</button>
     </div>
 
-    <div id="Manual" class="tabcontent" style="display:block;">
-        <div class="form-group">
-            <label for="addresses">Direcciones (una por línea, formato: Cliente, Dirección, HH:MM)</label>
-            <textarea id="addresses" rows="4" placeholder="Ejemplo:
-Mercado Central, Cra 7 # 26-10, Bogotá, 10:00
-Supermercado XXL, Av Siempre Viva 123, Bogotá, 11:00"></textarea>
-        </div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('text')">📝 Texto Libre</button>
+      <button class="tab" onclick="switchTab('file')">📸 Foto / PDF</button>
+      <button class="tab" onclick="switchTab('manual')">📋 Manual</button>
     </div>
 
-    <div id="Archivo" class="tabcontent">
-        <div class="form-group">
-            <label for="fileInput">Seleccione un archivo (PDF, DOCX, XLSX, XLS, CSV, TXT)</label>
-            <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt">
-            <small>Formatos soportados: PDF, Word, Excel, CSV, Texto plano</small>
-        </div>
+    <!-- Text Tab -->
+    <div id="tab-text">
+      <textarea id="textInput" placeholder="Pega aquí el texto del albarán o escribe las paradas...&#10;&#10;Ejemplo:&#10;Bar Pepe, Calle Mayor 1, 10:00&#10;Oficina Central, Av. Puerto 20, 12:00"></textarea>
+      <button class="btn btn-primary" onclick="optimizeText()">
+        <span class="spinner"></span>
+        <span class="label">⚡ Optimizar Ruta</span>
+      </button>
+      <div id="textError" class="error hidden"></div>
     </div>
 
-    <div class="form-group">
-        <label for="depot">Dirección del depósito (opcional, si no se proporciona se usa la primera parada):</label>
-        <input type="text" id="depot" placeholder="Ej: Depósito Principal, Ciudad">
+    <!-- File Tab -->
+    <div id="tab-file" class="hidden">
+      <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">📸</div>
+        <p>Arrastra una foto del albarán aquí<br>o <span class="browse">haz clic para seleccionar</span></p>
+        <p style="font-size:11px;margin-top:4px;opacity:.6;">JPG, PNG o PDF · Máx 10 MB</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*,.pdf" onchange="handleFile(event)" class="hidden">
+      <img id="preview" class="preview-img hidden" style="display:none;">
+      <div id="fileName" style="margin-top:10px;font-size:13px;color:var(--muted);"></div>
+      <button class="btn btn-primary" onclick="optimizeFile()">
+        <span class="spinner"></span>
+        <span class="label">🧠 Extraer y Optimizar</span>
+      </button>
+      <div id="fileError" class="error hidden"></div>
     </div>
 
-    <div class="form-group">
-        <label for="vehicles">Número de vehículos:</label>
-        <input type="number" id="vehicles" value="1" min="1">
+    <!-- Manual Tab -->
+    <div id="tab-manual" class="hidden">
+      <div id="manualStops"></div>
+      <button class="btn" style="background:var(--border);color:var(--text);width:100%;margin-top:8px;" onclick="addStop()">+ Añadir Parada</button>
+      <button class="btn btn-primary" onclick="optimizeManual()">
+        <span class="spinner"></span>
+        <span class="label">⚡ Optimizar Ruta</span>
+      </button>
+      <div id="manualError" class="error hidden"></div>
     </div>
+  </div>
 
-    <button id="optimizeBtn">Optimizar Ruta</button>
-    <button id="uploadBtn" style="margin-left:10px;">Subir Ruta</button>
-
-    <div id="result" class="result" style="display:none;">
-        <h2>Resultado</h2>
-        <p><strong>Distancia total:</strong> <span id="totalDistance"></span> km</p>
-        <p><strong>Tiempo total estimado:</strong> <span id="totalTime"></span> horas</p>
-        <p><strong>Orden óptimo de visita:</strong> <span id="routeOrder"></span></p>
+  <!-- Results -->
+  <div id="resultsSection" class="hidden">
+    <div class="card">
+      <h2>✅ Ruta Optimizada</h2>
+      <div class="stats">
+        <div class="stat"><div class="value km" id="statDistance">--</div><div class="label">Kilómetros totales</div></div>
+        <div class="stat"><div class="value hr" id="statTime">--</div><div class="label">Horas estimadas</div></div>
+        <div class="stat"><div class="value stops" id="statStops">--</div><div class="label">Paradas</div></div>
+      <ul class="route-list" id="routeList"></ul>
     </div>
+  </div>
 
-    <div id="map"></div>
+  <!-- Empty state -->
+  <div id="emptyState" class="card empty">
+    <div class="icon">🗺️</div>
+    <p>Introduce las paradas y pulsa <strong>"Optimizar Ruta"</strong><br>para ver el resultado aquí</p>
+  </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-o9N1j8djG0z5Z6uJ+zV6K7Y6Y6c6c6c6c6c6c6c6c6c"
-        crossorigin=""></script>
 <script>
-    const map = L.map('map').setView([4.60971, -74.08175], 13); // Bogotá center as default
+const API = '';
+let currentTab = 'text';
+let selectedFile = null;
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+// ── Tabs ──
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('[id^="tab-"]').forEach(d => d.classList.add('hidden'));
+  document.querySelector(`.tab:nth-child(${{text:1,file:2,manual:3}[tab]})`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.remove('hidden');
+}
 
-    function openTab(evt, tabName) {
-        var i, tabcontent, tablinks;
-        tabcontent = document.getElementsByClassName("tabcontent");
-        for (i = 0; i < tabcontent.length; i++) {
-            tabcontent[i].style.display = "none";
-        }
-        tablinks = document.getElementsByClassName("tablinks");
-        for (i = 0; i < tablinks.length; i++) {
-            tablinks[i].className = tablinks[i].className.replace(" active", "");
-        }
-        document.getElementById(tabName).style.display = "block";
-        evt.currentTarget.className += " active";
+// ── Manual Stops ──
+function addStop() {
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;';
+  div.innerHTML = `
+    <input type="text" placeholder="Cliente" style="flex:1;min-width:100px;min-height:auto;">
+    <input type="text" placeholder="Dirección" style="flex:2;min-width:140px;min-height:auto;">
+    <input type="text" placeholder="HH:MM" style="width:80px;min-height:auto;">
+    <button onclick="this.parentElement.remove()" style="background:var(--red);color:#fff;border:none;border-radius:6px;width:32px;cursor:pointer;font-size:16px;">×</button>
+  `;
+  document.getElementById('manualStops').appendChild(div);
+}
+
+// ── File Upload ──
+function handleFile(e) {
+  selectedFile = e.target.files[0];
+  if (!selectedFile) return;
+  document.getElementById('fileName').textContent = `📎 ${selectedFile.name} (${(selectedFile.size/1024).toFixed(0)} KB)`;
+  if (selectedFile.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = document.getElementById('preview');
+      img.src = ev.target.result;
+      img.classList.remove('hidden');
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(selectedFile);
+  }
+}
+
+// Drop zone
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    document.getElementById('fileInput').files = e.dataTransfer.files;
+    handleFile({ target: { files: [file] } });
+  }
+});
+
+function getDepot() {
+  return document.getElementById('depotGlobal').value.trim();
+}
+
+// ── Optimize ──
+async function optimize(data, btn, errorEl) {
+  btn.classList.add('loading');
+  errorEl.classList.add('hidden');
+  document.getElementById('resultsSection').classList.add('hidden');
+  document.getElementById('emptyState').classList.remove('hidden');
+
+  try {
+    const res = await fetch(`${API}/api/optimizar-ruta`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({detail:'Error de conexión'}));
+      throw new Error(err.detail || 'Error del servidor');
     }
+    const result = await res.json();
+    showResults(result, data.depot || 'Depósito');
+    errorEl.classList.add('hidden');
+  } catch(e) {
+    errorEl.textContent = '❌ ' + e.message;
+    errorEl.classList.remove('hidden');
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
 
-    document.getElementById('optimizeBtn').addEventListener('click', async () => {
-        const addressesText = document.getElementById('addresses').value.trim();
-        const depot = document.getElementById('depot').value.trim();
-        const vehicles = parseInt(document.getElementById('vehicles').value) || 1;
+function optimizeText() {
+  const text = document.getElementById('textInput').value.trim();
+  const depot = getDepot();
+  if (!text) return showError('text', 'Escribe al menos una parada.');
+  optimize(
+    { document_text: text, depot: depot || undefined, vehicle_count: 1 },
+    document.querySelector('#tab-text .btn-primary'),
+    document.getElementById('textError')
+  );
+}
 
-        if (!addressesText) {
-            alert('Por favor ingrese al menos una dirección');
-            return;
-        }
+function optimizeFile() {
+  if (!selectedFile) return showError('file', 'Selecciona una imagen o PDF primero.');
+  const btn = document.querySelector('#tab-file .btn-primary');
+  const errorEl = document.getElementById('fileError');
+  btn.classList.add('loading');
+  errorEl.classList.add('hidden');
 
-        // Show loading
-        document.getElementById('optimizeBtn').disabled = true;
-        document.getElementById('optimizeBtn').textContent = 'Optimizando...';
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+  const depot = getDepot();
+  if (depot) formData.append('depot', depot);
 
-        try {
-            const response = await fetch('/api/optimizar-ruta', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    document_text: addressesText,
-                    depot: depot || null,
-                    vehicle_count: vehicles
-                })
-            });
+  fetch(`${API}/api/optimizar-archivo`, { method: 'POST', body: formData })
+    .then(async res => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({detail:'Error de conexión'}));
+        throw new Error(err.detail || 'Error del servidor');
+      }
+      return res.json();
+    })
+    .then(result => {
+      showResults(result, 'Depósito');
+      errorEl.classList.add('hidden');
+    })
+    .catch(e => {
+      errorEl.textContent = '❌ ' + e.message;
+      errorEl.classList.remove('hidden');
+    })
+    .finally(() => btn.classList.remove('loading'));
+}
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Error en el servidor');
-            }
+function optimizeManual() {
+  const stops = [];
+  document.querySelectorAll('#manualStops > div').forEach(div => {
+    const inputs = div.querySelectorAll('input');
+    const cliente = inputs[0].value.trim();
+    const direccion = inputs[1].value.trim();
+    const horario = inputs[2].value.trim();
+    if (cliente && direccion) {
+      stops.push({ cliente, direccion, horario_limite: horario || null });
+    }
+  });
+  if (stops.length === 0) return showError('manual', 'Añade al menos una parada.');
+  const depot = getDepot();
+  optimize(
+    { paradas: stops, depot: depot || undefined, vehicle_count: 1 },
+    document.querySelector('#tab-manual .btn-primary'),
+    document.getElementById('manualError')
+  );
+}
 
-            const result = await response.json();
+function showError(tab, msg) {
+  const el = document.getElementById(`${tab}Error`);
+  if (el) { el.textContent = '⚠️ ' + msg; el.classList.remove('hidden'); }
+}
 
-            // Update result UI
-            document.getElementById('totalDistance').textContent = result.distancia_total_km;
-            document.getElementById('totalTime').textContent = result.tiempo_total_horas;
-            document.getElementById('routeOrder').textContent = result.orden_optimizado.map(i => i + 1).join(' → ');
-            document.getElementById('result').style.display = 'block';
+// ── Show Results ──
+function showResults(result, depot) {
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('resultsSection').classList.remove('hidden');
 
-            // Clear previous markers and polyline
-            if (window.currentLayer) {
-                map.removeLayer(window.currentLayer);
-            }
-            if (window.markers) {
-                window.markers.forEach(m => map.removeLayer(m));
-            }
-            window.markers = [];
+  document.getElementById('statDistance').textContent = result.distancia_total_km.toFixed(1);
+  document.getElementById('statTime').textContent = result.tiempo_total_horas.toFixed(1);
+  document.getElementById('statStops').textContent = result.detalles.length;
 
-            // We need coordinates to show on-map and requested to implement.
-            // For simplicity, we'll just show a message that mapping requires coordinates.
-            alert('Para ver la ruta en el mapa, necesitaremos implementar la geocodificación del lado del cliente o devolver coordenadas desde el backend. Por ahora, solo se muestra el resultado numérico.');
+  const list = document.getElementById('routeList');
+  list.innerHTML = '';
+  result.detalles.forEach((stop, i) => {
+    const li = document.createElement('li');
+    li.className = 'route-stop';
+    li.innerHTML = `
+      <div class="stop-num">${i + 1}</div>
+      <div class="stop-info">
+        <div class="name">${stop.cliente || 'Parada ' + (i+1)}</div>
+        <div class="addr">${stop.direccion || ''}</div>
+      </div>
+      <div class="stop-time">${stop.hora_llegada_estimada || '--:--'}</div>
+    `;
+    list.appendChild(li);
+  });
 
-        } catch (error) {
-            alert('Error: ' + error.message);
-        } finally {
-            document.getElementById('optimizeBtn').disabled = false;
-            document.getElementById('optimizeBtn').textContent = 'Optimizar Ruta';
-        }
-    });
+  // Smooth scroll to results
+  document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
-    document.getElementById('uploadBtn').addEventListener('click', async () => {
-        const fileInput = document.getElementById('fileInput');
-        const depot = document.getElementById('depot').value.trim();
-        const vehicles = parseInt(document.getElementById('vehicles').value) || 1;
+// Init: add one stop in manual tab
+addStop();
 
-        if (!fileInput.files || fileInput.files.length === 0) {
-            alert('Por favor seleccione un archivo');
-            return;
-        }
+// ── Depot persistence ──
+const DEPOT_KEY = 'kavana_depot';
 
-        const file = fileInput.files[0];
+function saveDepot() {
+  const val = document.getElementById('depotGlobal').value.trim();
+  if (val) {
+    localStorage.setItem(DEPOT_KEY, val);
+    document.getElementById('depotPin').style.display = 'inline-flex';
+  }
+}
 
-        // Show loading
-        document.getElementById('uploadBtn').disabled = true;
-        document.getElementById('uploadBtn').textContent = 'Procesando...';
+function clearDepot() {
+  localStorage.removeItem(DEPOT_KEY);
+  document.getElementById('depotGlobal').value = '';
+  document.getElementById('depotPin').style.display = 'none';
+}
 
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            if (depot) {
-                formData.append('depot', depot);
-            }
-            formData.append('vehicle_count', vehicles);
+function openMapPicker() {
+  const current = getDepot() || 'Paterna, Valencia';
+  const url = `https://www.google.com/maps/search/${encodeURIComponent(current)}`;
+  window.open(url, '_blank', 'width=800,height=600');
+  // Show hint
+  const el = document.getElementById('depotGlobal');
+  el.style.borderColor = 'var(--orange)';
+  setTimeout(() => el.style.borderColor = '', 2000);
+  el.focus();
+}
 
-            const response = await fetch('/api/optimizar-archivo', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Error en el servidor');
-            }
-
-            const result = await response.json();
-
-            // Update result UI
-            document.getElementById('totalDistance').textContent = result.distancia_total_km;
-            document.getElementById('totalTime').textContent = result.tiempo_total_horas;
-            document.getElementById('routeOrder').textContent = result.orden_optimizado.map(i => i + 1).join(' → ');
-            document.getElementById('result').style.display = 'block';
-
-            // Clear previous markers and polyline
-            if (window.currentLayer) {
-                map.removeLayer(window.currentLayer);
-            }
-            if (window.markers) {
-                window.markers.forEach(m => map.removeLayer(m));
-            }
-            window.markers = [];
-
-            alert('Para ver la ruta en el mapa, necesitaremos implementar la geocodificación del lado del cliente o devolver coordenadas desde el backend. Por ahora, solo se muestra el resultado numérico.');
-
-        } catch (error) {
-            alert('Error: ' + error.message);
-        } finally {
-            document.getElementById('uploadBtn').disabled = false;
-            document.getElementById('uploadBtn').textContent = 'Subir Ruta';
-        }
-    });
+// Load saved depot
+(function() {
+  const saved = localStorage.getItem(DEPOT_KEY);
+  if (saved) {
+    document.getElementById('depotGlobal').value = saved;
+    document.getElementById('depotPin').style.display = 'inline-flex';
+  }
+})();
 </script>
+
 </body>
 </html>

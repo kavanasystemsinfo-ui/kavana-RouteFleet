@@ -12,7 +12,8 @@ import {
   Check,
   RefreshCcw,
   Plus,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Scanner from './components/Scanner';
@@ -149,6 +150,7 @@ function App() {
   const [showScanner, setShowScanner] = useState(false);
   const [showSignature, setShowSignature] = useState(false);
   const [showIncident, setShowIncident] = useState(false);
+  const [podUrl, setPodUrl] = useState(null);
   const [stops, setStops] = useState([]);
   
   const [mapZoom, setMapZoom] = useState(15);
@@ -172,7 +174,7 @@ function App() {
   const handleDeliver = async (deliveryData) => {
     if (!activeStop.id) return;
     try {
-      await fetch(`http://localhost:5001/api/stops/${activeStop.id}`, {
+      await fetch(`${API_BASE}/stops/${activeStop.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -182,6 +184,14 @@ function App() {
         })
       });
       setShowSignature(false);
+      // Recuperar el POD generado para ofrecer descarga al operario.
+      try {
+        const podRes = await fetch(`${API_BASE}/stops/${activeStop.id}/pod`);
+        if (podRes.ok) {
+          const pod = await podRes.json();
+          setPodUrl(pod.pod_url);
+        }
+      } catch (_) { /* POD opcional */ }
       fetchStops();
     } catch (error) { console.error(error); }
   };
@@ -223,10 +233,10 @@ function App() {
     <div style={styles.container}>
       <header style={styles.header}>
         <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-          <img src="/logo.png" alt="Kavana Logistics" style={{height: '45px', width: 'auto'}} />
+          <img src="/logo.png" alt="Kavana RouteFleet" style={{height: '45px', width: 'auto'}} />
           <div>
             <div style={{...styles.brand, fontSize: '18px'}}>KAVANA</div>
-            <div style={{fontSize: '8px', color: '#666', fontWeight: '900', letterSpacing: '2px'}}>LOGISTICS</div>
+            <div style={{fontSize: '8px', color: '#666', fontWeight: '900', letterSpacing: '2px'}}>ROUTEFLEET</div>
           </div>
         </div>
         <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
@@ -299,6 +309,11 @@ function App() {
                     ENTREGAR PEDIDO <CheckCircle2 style={{width: '20px'}} />
                  </button>
                </div>
+               {podUrl && (
+                 <a href={podUrl} target="_blank" rel="noreferrer" style={{...styles.btnPrimary, marginTop: '12px', backgroundColor: '#FF3D00', color: '#000', textDecoration: 'none'}}>
+                    DESCARGAR POD (FIRMA) <Download style={{width: '20px'}} />
+                 </a>
+               )}
             </div>
           </div>
         )}

@@ -12,20 +12,15 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       const [stopsRes, settingsRes] = await Promise.all([
-        fetch(`${API_BASE}/stops`),
+        fetch(`${API_BASE}/dashboard-data`),
         fetch(`${API_BASE}/settings`)
       ]);
-      
       if (!stopsRes.ok || !settingsRes.ok) throw new Error('Fallo en la respuesta del servidor');
-
-      const stops = await stopsRes.json();
+      const dash = await stopsRes.json();
       const settings = await settingsRes.json();
       
-      const metrics = {
-        total: stops.length,
-        delivered: stops.filter(s => s.status === 'delivered').length,
-        incidents: stops.filter(s => s.status === 'incident').length
-      };
+      const stops = dash.stops || [];
+      const metrics = dash.metrics || { total: 0, delivered: 0, incidents: 0 };
 
       setData({ stops, metrics, settings: settings || { cost_per_km: 0.45, cost_per_hour: 15.00 } });
       setFormSettings(settings || { cost_per_km: 0.45, cost_per_hour: 15.00 });
@@ -98,7 +93,7 @@ const AdminDashboard = () => {
         <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
           <img src="/logo.png" alt="Kavana Logo" style={{height: '60px', width: 'auto'}} />
           <div>
-            <h1 style={{margin: 0, fontSize: '32px', fontWeight: '900', color: '#FF3D00', letterSpacing: '-1px'}}>KAVANA LOGISTICS</h1>
+            <h1 style={{margin: 0, fontSize: '32px', fontWeight: '900', color: '#FF3D00', letterSpacing: '-1px'}}>KAVANA ROUTEFLEET</h1>
             <h2 style={{margin: 0, fontSize: '14px', color: '#666', fontWeight: '800', letterSpacing: '2px'}}>TORRE DE CONTROL DE DESPACHO</h2>
           </div>
         </div>

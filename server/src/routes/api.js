@@ -1,5 +1,4 @@
 import express from 'express';
-import db from '../../db.js';
 import { processManifestImage } from '../services/ocrService.js';
 import { optimizeRoute } from '../services/aiService.js';
 import { generatePOD } from '../services/pdfService.js';
@@ -7,12 +6,15 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dbModule from '../db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const router = express.Router();
-
+// Factory: recibe la conexión de BD para permitir inyección en tests.
+export default function apiRouter(db) {
+  db = db || dbModule.default.initDb();
+  const router = express.Router();
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
@@ -41,7 +43,7 @@ router.get('/dashboard-data', (req, res) => {
       const podFile = podsFiles.find(f => f.includes(`_${stop.id}_`));
       return {
         ...stop,
-        pod_url: podFile ? `http://localhost:5001/pods/${podFile}` : null,
+        pod_url: podFile ? `/pods/${podFile}` : null,
         incidents: incidents.filter(i => i.stop_id === stop.id)
       };
     });
@@ -196,4 +198,18 @@ router.post('/stops/:id/incident', (req, res) => {
   }
 });
 
-export default router;
+// Obtener la URL del POD (Proof of Delivery) de una parada, si existe.
+router.get('/stops/:id/pod', (req, res) => {
+  try {
+    const podsDir = path.join(__dirname, '../../pods');
+    if (!fs.existsSync(podsDir)) return res.status(404).json({ error: 'Sin POD' });
+    const files = fs.readdirSync(podsDir).filter(f => f.includes(`_${req.params.id}_`) && f.endsWith('.pdf'));
+    if (files.length === 0) return res.status(404).json({ error: 'Sin POD' });
+    res.json({ pod_url: `/pods/${files[0]}` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+  return router;
+}

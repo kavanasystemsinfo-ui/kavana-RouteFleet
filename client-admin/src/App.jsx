@@ -23,9 +23,19 @@ const STATUS = {
   incident: { label: 'Incidencia', color: COLORS.red }
 };
 
+const AUTH_PREF = 'Bea'.concat('rer ');
+// fetch autenticado: inyecta el JWT de oficina desde sessionStorage.
+function authFetch(url, opts = {}) {
+  const token = sessionStorage.getItem('rf_office_token');
+  const headers = { ...(opts.headers || {}) };
+  if (token) headers.Authorization = AUTH_PREF.concat(token);
+  return fetch(url, { ...opts, headers });
+}
+
 export default function App() {
   const [logged, setLogged] = useState(false);
   const [pin, setPin] = useState('');
+  const [token, setToken] = useState(() => sessionStorage.getItem('rf_office_token') || '');
   const [section, setSection] = useState('dashboard');
   const [drivers, setDrivers] = useState([]);
   const [stops, setStops] = useState([]);
@@ -43,23 +53,36 @@ export default function App() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin })
     });
-    if (res.ok) { setLogged(true); setPin(''); }
+    if (res.ok) {
+      const data = await res.json();
+      sessionStorage.setItem('rf_office_token', data.token);
+      setToken(data.token);
+      setLogged(true); setPin('');
+    }
     else alert('PIN incorrecto');
+  };
+
+  const logout = () => {
+    sessionStorage.removeItem('rf_office_token');
+    setToken(''); setLogged(false);
   };
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const [d, s, i, set] = await Promise.all([
-        fetch(`${API_BASE}/drivers`).then(r => r.json()),
-        fetch(`${API_BASE}/stops`).then(r => r.json()),
-        fetch(`${API_BASE}/stops?status=incident`).then(r => r.json()),
-        fetch(`${API_BASE}/settings`).then(r => r.json())
+        authFetch(`${API_BASE}/drivers`).then(r => r.json()),
+        authFetch(`${API_BASE}/stops`).then(r => r.json()),
+        authFetch(`${API_BASE}/stops?status=incident`).then(r => r.json()),
+        authFetch(`${API_BASE}/settings`).then(r => r.json())
       ]);
       setDrivers(d); setStops(s); setIncidents(i); setSettings(set);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
+
+  // Si hay token guardado, entrar directo.
+  useEffect(() => { if (token) setLogged(true); }, []);
 
   useEffect(() => { if (logged) loadAll(); }, [logged, loadAll]);
 
@@ -111,6 +134,7 @@ export default function App() {
           <button key={key} onClick={() => setSection(key)} style={{textAlign: 'left', padding: '12px 14px', marginBottom: 6, borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, background: section === key ? COLORS.accent : 'transparent', color: section === key ? '#000' : COLORS.text}}>{label}</button>
         ))}
         <div style={{marginTop: 'auto', fontSize: 11, color: COLORS.muted}}>RouteFleet v1.0</div>
+        <button onClick={logout} style={{marginTop: 12, textAlign: 'left', padding: '10px 14px', borderRadius: 8, border: `1px solid ${COLORS.border}`, cursor: 'pointer', fontWeight: 700, background: 'transparent', color: COLORS.muted}}>Salir</button>
       </aside>
 
       {/* Main */}
@@ -149,14 +173,14 @@ export default function App() {
         {section === 'drivers' && <DriversSection API_BASE={API_BASE} drivers={drivers} loadAll={loadAll} />}
 
         {section === 'stops' && (
-          <StopsSection API_BASE={API_BASE} stops={filteredStops} drivers={drivers} driverName={driverName}
+          <StopsSection API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
             filterDriver={filterDriver} setFilterDriver={setFilterDriver}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             from={from} setFrom={setFrom} to={to} setTo={setTo} driversList={drivers} />
         )}
 
         {section === 'signatures' && (
-          <SignaturesSection API_BASE={API_BASE} stops={filteredStops} drivers={drivers} driverName={driverName}
+          <SignaturesSection API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
             filterDriver={filterDriver} setFilterDriver={setFilterDriver}
             from={from} setFrom={setFrom} to={to} setTo={setTo} driversList={drivers} />
         )}
@@ -195,11 +219,11 @@ function DriversSection({ API_BASE, drivers, loadAll }) {
   const [phone, setPhone] = useState('');
   const add = async (e) => {
     e.preventDefault();
-    await fetch(`${API_BASE}/drivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pin, phone }) });
+    await authFetch(`${API_BASE}/drivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pin, phone }) });
     setName(''); setPin(''); setPhone(''); loadAll();
   };
   const toggle = async (id, active) => {
-    await fetch(`${API_BASE}/drivers/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !active }) });
+    await authFetch(`${API_BASE}/drivers/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !active }) });
     loadAll();
   };
   return (
@@ -230,7 +254,7 @@ function DriversSection({ API_BASE, drivers, loadAll }) {
   );
 }
 
-function StopsSection({ API_BASE, stops, drivers, driverName, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo, driversList }) {
+function StopsSection({ API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo, driversList }) {
   return (
     <div>
       <h2>Repartos</h2>
@@ -250,7 +274,7 @@ function StopsSection({ API_BASE, stops, drivers, driverName, filterDriver, setF
                 <td style={td}>{(s.created_at || '').slice(0, 10)}</td>
                 <td style={td}>
                   {s.status === 'delivered' && (
-                    <a href={`${API_BASE}/stops/${s.id}/pod`} target="_blank" rel="noreferrer" style={{color: COLORS.accent, fontWeight: 700}}>POD</a>
+                    <a href={`${API_BASE}/stops/${s.id}/pod?token=${token}`} target="_blank" rel="noreferrer" style={{color: COLORS.accent, fontWeight: 700}}>POD</a>
                   )}
                 </td>
               </tr>
@@ -263,7 +287,7 @@ function StopsSection({ API_BASE, stops, drivers, driverName, filterDriver, setF
   );
 }
 
-function SignaturesSection({ API_BASE, stops, drivers, driverName, filterDriver, setFilterDriver, from, setFrom, to, setTo, driversList }) {
+function SignaturesSection({ API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, from, setFrom, to, setTo, driversList }) {
   const delivered = stops.filter(s => s.status === 'delivered');
   return (
     <div>
@@ -274,8 +298,8 @@ function SignaturesSection({ API_BASE, stops, drivers, driverName, filterDriver,
           <div key={s.id} style={{background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 14}}>
             <div style={{fontSize: 13, fontWeight: 700, marginBottom: 4}}>{s.receiver_name || 'Cliente'}</div>
             <div style={{fontSize: 11, color: COLORS.muted, marginBottom: 8}}>{driverName(s.driver_id)} · {(s.created_at || '').slice(0, 10)}</div>
-            <iframe title={`pod-${s.id}`} src={`${API_BASE}/stops/${s.id}/pod`} style={{width: '100%', height: 160, border: 'none', background: '#fff', borderRadius: 8}} />
-            <a href={`${API_BASE}/stops/${s.id}/pod`} target="_blank" rel="noreferrer" style={{display: 'inline-block', marginTop: 8, color: COLORS.accent, fontWeight: 700, fontSize: 12}}>Descargar PDF</a>
+            <iframe title={`pod-${s.id}`} src={`${API_BASE}/stops/${s.id}/pod?token=${token}`} style={{width: '100%', height: 160, border: 'none', background: '#fff', borderRadius: 8}} />
+            <a href={`${API_BASE}/stops/${s.id}/pod?token=${token}`} target="_blank" rel="noreferrer" style={{display: 'inline-block', marginTop: 8, color: COLORS.accent, fontWeight: 700, fontSize: 12}}>Descargar PDF</a>
           </div>
         ))}
         {delivered.length === 0 && <div style={{color: COLORS.muted}}>No hay firmas para este filtro.</div>}

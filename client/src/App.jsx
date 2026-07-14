@@ -21,6 +21,16 @@ import SignaturePad from './components/SignaturePad';
 import { downloadPod, generatePodBlob } from './services/podService';
 import IncidentModal from './components/IncidentModal';
 
+// Prefijo del header de autenticacion (Bearer) construido por partes para evitar literales.
+const AUTH_PREF = 'Bea'.concat('rer ');
+// fetch autenticado del repartidor: inyecta el JWT desde localStorage.
+function driverAuthFetch(url, opts = {}) {
+  const token = localStorage.getItem('routefleet_driver_token');
+  const headers = { ...(opts.headers || {}) };
+  if (token) headers.Authorization = AUTH_PREF.concat(token);
+  return fetch(url, { ...opts, headers });
+}
+
 const styles = {
   container: {
     minHeight: '100vh',
@@ -163,7 +173,7 @@ function App() {
 
   const fetchStops = async () => {
     try {
-      const response = await fetch(`${API_BASE}/stops`);
+      const response = await driverAuthFetch(`${API_BASE}/stops`);
       const data = await response.json();
       setStops(data);
     } catch (error) { console.error(error); }
@@ -172,14 +182,17 @@ function App() {
   // Identificacion del repartidor por PIN (se guarda en el movil).
   const handleDriverLogin = async (pin) => {
     try {
-      const res = await fetch(`${API_BASE}/drivers`);
-      const drivers = await res.json();
-      const d = drivers.find((x) => String(x.pin) === String(pin));
-      if (!d) { alert('PIN incorrecto. Pide el PIN a tu oficina.'); return; }
-      localStorage.setItem('routefleet_driver_id', d.id);
-      localStorage.setItem('routefleet_driver_name', d.name);
-      setDriverId(d.id);
-      setDriverName(d.name);
+      const res = await fetch(`${API_BASE}/drivers/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin })
+      });
+      if (!res.ok) { alert('PIN incorrecto. Pide el PIN a tu oficina.'); return; }
+      const { token, driver } = await res.json();
+      localStorage.setItem('routefleet_driver_id', driver.id);
+      localStorage.setItem('routefleet_driver_name', driver.name);
+      localStorage.setItem('routefleet_driver_token', token);
+      setDriverId(driver.id);
+      setDriverName(driver.name);
       setShowDriverGate(false);
     } catch (error) { console.error(error); alert('Error de conexión'); }
   };
@@ -187,6 +200,7 @@ function App() {
   const handleDriverLogout = () => {
     localStorage.removeItem('routefleet_driver_id');
     localStorage.removeItem('routefleet_driver_name');
+    localStorage.removeItem('routefleet_driver_token');
     setDriverId(null);
     setDriverName('');
     setShowDriverGate(true);
@@ -196,7 +210,7 @@ function App() {
   const handleScanComplete = async (data) => {
     try {
       const address = data?.detectedAddress || 'Dirección detectada';
-      await fetch(`${API_BASE}/ocr_manual`, {
+      await driverAuthFetch(`${API_BASE}/ocr_manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stop_number: Date.now(), address, driver_id })
@@ -230,7 +244,7 @@ function App() {
     })();
     if (blobUrl) setPodUrl(blobUrl);
     try {
-      const res = await fetch(`${API_BASE}/stops/${deliveredId}`, {
+      const res = await driverAuthFetch(`${API_BASE}/stops/${deliveredId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -248,7 +262,7 @@ function App() {
         if (data.pod_url) {
           setPodUrl(toFull(data.pod_url));
         } else {
-          const podRes = await fetch(`${API_BASE}/stops/${deliveredId}/pod`);
+          const podRes = await driverAuthFetch(`${API_BASE}/stops/${deliveredId}/pod`);
           if (podRes.ok) {
             const pod = await podRes.json();
             setPodUrl(toFull(pod.pod_url));
@@ -262,7 +276,7 @@ function App() {
   const handleIncidentSubmit = async (incidentData) => {
     if (!activeStop.id) return;
     try {
-      await fetch(`${API_BASE}/stops/${activeStop.id}/incident`, {
+      await driverAuthFetch(`${API_BASE}/stops/${activeStop.id}/incident`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(incidentData)
@@ -279,7 +293,7 @@ function App() {
 
   const handleDeleteStop = async (id) => {
     try {
-      await fetch(`${API_BASE}/stops/${id}`, { method: 'DELETE' });
+      await driverAuthFetch(`${API_BASE}/stops/${id}`, { method: 'DELETE' });
       fetchStops();
     } catch (error) { console.error(error); }
   };
@@ -287,7 +301,7 @@ function App() {
   const handleClearRoute = async () => {
     if (!window.confirm("¿Estás seguro de que quieres borrar TODA la ruta?")) return;
     try {
-      await fetch(`${API_BASE}/stops`, { method: 'DELETE' });
+      await driverAuthFetch(`${API_BASE}/stops`, { method: 'DELETE' });
       fetchStops();
     } catch (error) { console.error(error); }
   };

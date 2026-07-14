@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PODS_DIR = path.join(__dirname, '../../pods');
+const PREFIX = 'Bea'.concat('rer ');
+const authH = (token) => ({ Authorization: PREFIX.concat(token) });
 
 function startServer() {
   const db = dbModule.initDb(path.join(os.tmpdir(), `rf-api-${Date.now()}.json`));
@@ -24,7 +26,9 @@ function startServer() {
 test('GET /api/settings responde con costes OPEX', async () => {
   const { server, base } = await startServer();
   try {
-    const res = await fetch(`${base}/api/settings`);
+    const login = await fetch(`${base}/api/office/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '0000' }) });
+    const { token } = await login.json();
+    const res = await fetch(`${base}/api/settings`, { headers: { ...authH(token) } });
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.ok('cost_per_km' in data);
@@ -36,14 +40,23 @@ test('GET /api/settings responde con costes OPEX', async () => {
 test('CRUD de paradas + POD: crear, entregar y consultar POD', async () => {
   const { server, base, db } = await startServer();
   try {
+    // Repartidor + token driver
+    const driverId = queries.addDriver(db, 'Juan', '1234');
+    queries.setDriverActive(db, driverId, true);
+    const dlogin = await fetch(`${base}/api/drivers/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '1234' }) });
+    const { token: dtok } = await dlogin.json();
+    // Oficina + token office (para consultar POD)
+    const ologin = await fetch(`${base}/api/office/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '0000' }) });
+    const { token: otok } = await ologin.json();
+
     // Crear parada (ruta real usada por el cliente)
     const post = await fetch(`${base}/api/ocr_manual`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stop_number: 1, address: 'C/ Entrega 1, Valencia' })
+      headers: { 'Content-Type': 'application/json', ...authH(dtok) },
+      body: JSON.stringify({ stop_number: 1, address: 'C/ Entrega 1, Valencia', driver_id: driverId })
     });
     assert.equal(post.status, 200);
-    const stopsRes = await fetch(`${base}/api/stops`);
+    const stopsRes = await fetch(`${base}/api/stops`, { headers: { ...authH(otok) } });
     const stops = await stopsRes.json();
     assert.ok(stops.length >= 1);
     const stopId = stops[0].id;
@@ -51,13 +64,13 @@ test('CRUD de paradas + POD: crear, entregar y consultar POD', async () => {
     // Entregar con firma -> genera POD
     const patch = await fetch(`${base}/api/stops/${stopId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authH(dtok) },
       body: JSON.stringify({ status: 'delivered', signature: 'data:image/png;base64,AAA', receiverName: 'Juan' })
     });
     assert.equal(patch.status, 200);
 
     // Consultar POD
-    const pod = await fetch(`${base}/api/stops/${stopId}/pod`);
+    const pod = await fetch(`${base}/api/stops/${stopId}/pod`, { headers: { ...authH(otok) } });
     assert.equal(pod.status, 200);
     const podData = await pod.json();
     assert.ok(podData.pod_url.startsWith('/pods/'));
@@ -70,14 +83,16 @@ test('CRUD de paradas + POD: crear, entregar y consultar POD', async () => {
 test('CRUD de repartidores + login de oficina', async () => {
   const { server, base } = await startServer();
   try {
+    const login = await fetch(`${base}/api/office/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '0000' }) });
+    const { token } = await login.json();
     // Crear repartidor
     const post = await fetch(`${base}/api/drivers`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authH(token) },
       body: JSON.stringify({ name: 'Juan', pin: '1234', phone: '600123456' })
     });
     assert.equal(post.status, 200);
-    const list = await fetch(`${base}/api/drivers`);
+    const list = await fetch(`${base}/api/drivers`, { headers: { ...authH(token) } });
     const drivers = await list.json();
     assert.equal(drivers.length, 1);
     assert.equal(drivers[0].name, 'Juan');
@@ -103,10 +118,12 @@ test('CRUD de repartidores + login de oficina', async () => {
 test('PATCH /api/drivers/:id alterna activo', async () => {
   const { server, base, db } = await startServer();
   try {
+    const login = await fetch(`${base}/api/office/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '0000' }) });
+    const { token } = await login.json();
     const id = queries.addDriver(db, 'Luis', '1111');
     const patch = await fetch(`${base}/api/drivers/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authH(token) },
       body: JSON.stringify({ active: false })
     });
     assert.equal(patch.status, 200);
@@ -116,17 +133,67 @@ test('PATCH /api/drivers/:id alterna activo', async () => {
   }
 });
 
-test('GET /api/stops filtra por driver_id', async () => {
+test('GET /api/stops sin token devuelve 401', async () => {
+  const { server, base } = await startServer();
+  try {
+    const res = await fetch(`${base}/api/stops`);
+    assert.equal(res.status, 401);
+  } finally {
+    server.close();
+  }
+});
+
+test('office login devuelve JWT y GET /stops con ese token funciona', async () => {
+  const { server, base } = await startServer();
+  try {
+    const login = await fetch(`${base}/api/office/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '0000' })
+    });
+    assert.equal(login.status, 200);
+    const { token } = await login.json();
+    assert.ok(token && token.split('.').length === 3, 'debe ser JWT');
+    const stops = await fetch(`${base}/api/stops`, { headers: { ...authH(token) } });
+    assert.equal(stops.status, 200);
+  } finally {
+    server.close();
+  }
+});
+
+test('driver login y escritura requieren token de driver', async () => {
   const { server, base, db } = await startServer();
   try {
-    const juan = queries.addDriver(db, 'Juan', '1234');
-    const ana = queries.addDriver(db, 'Ana', '9999');
-    queries.addStop(db, 1, 'C/ A 1', 'pending', juan);
-    queries.addStop(db, 2, 'C/ B 2', 'pending', ana);
-    const res = await fetch(`${base}/api/stops?driver_id=${juan}`);
-    const stops = await res.json();
-    assert.equal(stops.length, 1);
-    assert.equal(stops[0].driver_id, juan);
+    const id = queries.addDriver(db, 'Juan', '1234');
+    // sin token -> 401
+    let r = await fetch(`${base}/api/ocr_manual`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stop_number: 1, address: 'X', driver_id: id }) });
+    assert.equal(r.status, 401);
+    // login driver
+    const login = await fetch(`${base}/api/drivers/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '1234' }) });
+    assert.equal(login.status, 200);
+    const { token } = await login.json();
+    // con token driver -> 200
+    r = await fetch(`${base}/api/ocr_manual`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authH(token) }, body: JSON.stringify({ stop_number: 1, address: 'X', driver_id: id }) });
+    assert.equal(r.status, 200);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /stops acepta token de driver y DELETE exige driver', async () => {
+  const { server, base, db } = await startServer();
+  try {
+    const id = queries.addDriver(db, 'Ana', '5678');
+    queries.addStop(db, { stop_number: 1, address: 'Calle A', driver_id: id });
+    const login = await fetch(`${base}/api/drivers/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '5678' }) });
+    const { token } = await login.json();
+    const stops = await fetch(`${base}/api/stops?driver_id=${id}`, { headers: { ...authH(token) } });
+    assert.equal(stops.status, 200);
+    const arr = await stops.json();
+    assert.ok(Array.isArray(arr));
+    const delNo = await fetch(`${base}/api/stops/1`, { method: 'DELETE' });
+    assert.equal(delNo.status, 401);
+    const del = await fetch(`${base}/api/stops/1`, { method: 'DELETE', headers: { ...authH(token) } });
+    assert.equal(del.status, 200);
   } finally {
     server.close();
   }

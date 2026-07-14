@@ -198,3 +198,43 @@ test('GET /stops acepta token de driver y DELETE exige driver', async () => {
     server.close();
   }
 });
+
+test('POST /api/drivers con email dispara bienvenida (modo dev sin SMTP)', async () => {
+  const { server, base } = await startServer();
+  try {
+    const login = await fetch(`${base}/api/office/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '0000' }) });
+    const { token } = await login.json();
+    delete process.env.SMTP_HOST; delete process.env.SMTP_USER; delete process.env.SMTP_PASS;
+    const post = await fetch(`${base}/api/drivers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authH(token) },
+      body: JSON.stringify({ name: 'Pepe', pin: '4321', phone: '600111222', email: 'pepe@empresa.com' })
+    });
+    assert.equal(post.status, 200);
+    const data = await post.json();
+    assert.equal(data.success, true);
+    assert.equal(data.emailDev, true, 'sin SMTP configurado debe ir a modo dev (log)');
+    assert.equal(data.emailSent, false);
+    const list = await fetch(`${base}/api/drivers`, { headers: { ...authH(token) } });
+    const drivers = await list.json();
+    const pepe = drivers.find((d) => d.name === 'Pepe');
+    assert.ok(pepe, 'repartidor creado');
+    assert.equal(pepe.email, 'pepe@empresa.com');
+  } finally {
+    server.close();
+  }
+});
+
+test('emailService construye HTML de bienvenida con enlaces de descarga', async () => {
+  const { buildWelcomeHtml } = await import('../src/services/emailService.js');
+  const html = buildWelcomeHtml({
+    name: 'Pepe', pin: '4321',
+    appUrl: 'https://routefleet.kavanasystems.com/app',
+    apkUrl: 'https://routefleet.kavanasystems.com/download/routefleet.apk',
+    downloadUrl: 'https://routefleet.kavanasystems.com/download'
+  });
+  assert.ok(html.includes('routefleet.kavanasystems.com/app'), 'debe enlazar la PWA');
+  assert.ok(html.includes('/download/routefleet.apk'), 'debe enlazar el APK');
+  assert.ok(html.includes('4321'), 'debe incluir el PIN');
+  assert.ok(html.includes('api.qrserver.com'), 'debe incluir QR');
+});

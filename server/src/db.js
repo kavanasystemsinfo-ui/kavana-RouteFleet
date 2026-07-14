@@ -119,9 +119,9 @@ export const queries = {
     db._save();
   },
   // --- Repartidores (drivers) ---
-  addDriver: (db, name, pin, phone = '') => {
+  addDriver: (db, name, pin, phone = '', email = '') => {
     const id = (db._store.drivers.reduce((m, d) => Math.max(m, d.id || 0), 0)) + 1;
-    db._store.drivers.push({ id, name, pin: String(pin), phone, active: true });
+    db._store.drivers.push({ id, name, pin: String(pin), phone, email: email || '', active: true });
     db._save();
     return id;
   },

@@ -232,10 +232,16 @@ function DriversSection({ API_BASE, drivers, loadAll }) {
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [msg, setMsg] = useState('');
   const add = async (e) => {
     e.preventDefault();
-    await authFetch(`${API_BASE}/drivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pin, phone }) });
-    setName(''); setPin(''); setPhone(''); loadAll();
+    setMsg('');
+    const res = await authFetch(`${API_BASE}/drivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pin, phone, email }) });
+    const data = await res.json().catch(() => ({}));
+    setName(''); setPin(''); setPhone(''); setEmail(''); loadAll();
+    if (data.emailSent) setMsg(`Email de bienvenida enviado a ${email}`);
+    else if (data.emailDev) setMsg(`Repartidor creado. (modo dev: email no enviado - falta SMTP en el servidor)`);
   };
   const toggle = async (id, active) => {
     await authFetch(`${API_BASE}/drivers/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !active }) });
@@ -248,21 +254,24 @@ function DriversSection({ API_BASE, drivers, loadAll }) {
         <input placeholder="Nombre" value={name} onChange={e => setName(e.target.value)} style={input} />
         <input placeholder="PIN" value={pin} onChange={e => setPin(e.target.value)} style={input} />
         <input placeholder="Teléfono" value={phone} onChange={e => setPhone(e.target.value)} style={input} />
+        <input placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} style={input} />
         <button type="submit" style={btn}>Alta repartidor</button>
       </form>
+      {msg && <div style={{marginBottom: 14, color: C.green, fontSize: 13}}>{msg}</div>}
       <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13}}>
-        <thead><tr style={{color: C.muted, textAlign: 'left'}}><th style={th}>Nombre</th><th style={th}>PIN</th><th style={th}>Teléfono</th><th style={th}>Estado</th><th style={th}></th></tr></thead>
+        <thead><tr style={{color: C.muted, textAlign: 'left'}}><th style={th}>Nombre</th><th style={th}>PIN</th><th style={th}>Teléfono</th><th style={th}>Email</th><th style={th}>Estado</th><th style={th}></th></tr></thead>
         <tbody>
           {drivers.map(d => (
             <tr key={d.id} style={{borderTop: `1px solid ${C.border}`}}>
               <td style={td}>{d.name}</td>
               <td style={td}>{d.pin}</td>
               <td style={td}>{d.phone}</td>
+              <td style={td}>{d.email || '—'}</td>
               <td style={td}>{d.active ? <span style={{color: C.green}}>Activo</span> : <span style={{color: C.muted}}>Inactivo</span>}</td>
               <td style={td}><button onClick={() => toggle(d.id, d.active)} style={{...btn, padding: '6px 10px', fontSize: 12}}>{d.active ? 'Desactivar' : 'Activar'}</button></td>
             </tr>
           ))}
-          {drivers.length === 0 && <tr><td style={td} colSpan={5} style={{color: C.muted}}>Sin repartidores.</td></tr>}
+          {drivers.length === 0 && <tr><td style={td} colSpan={6} style={{color: C.muted}}>Sin repartidores.</td></tr>}
         </tbody>
       </table>
     </div>

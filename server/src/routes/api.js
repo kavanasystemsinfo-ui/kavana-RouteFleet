@@ -90,12 +90,21 @@ export default function apiRouter(db) {
     }
   });
 
-  router.post('/drivers', requireAuth(['office']), (req, res) => {
+  router.post('/drivers', requireAuth(['office']), async (req, res) => {
     try {
-      const { name, pin, phone } = req.body;
+      const { name, pin, phone, email } = req.body;
       if (!name || !pin) return res.status(400).json({ error: 'name y pin requeridos' });
-      const id = queries.addDriver(db, name, pin, phone || '');
-      res.json({ success: true, id });
+      const id = queries.addDriver(db, name, pin, phone || '', email || '');
+      // Enviar email de bienvenida con instrucciones de descarga (SMTP/Resend).
+      // No bloquea la respuesta si el email falla.
+      let emailResult = { sent: false, dev: false };
+      try {
+        const { sendDriverWelcome } = await import('../services/emailService.js');
+        emailResult = await sendDriverWelcome({ name, email: email || '', pin });
+      } catch (mailErr) {
+        console.error('Error enviando email de bienvenida:', mailErr.message);
+      }
+      res.json({ success: true, id, emailSent: emailResult.sent, emailDev: emailResult.dev });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

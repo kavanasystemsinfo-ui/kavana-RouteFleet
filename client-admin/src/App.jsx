@@ -4,6 +4,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE)
   ? `${import.meta.env.VITE_API_BASE.replace(/\/$/, '')}/api`
   : `http://${window.location.hostname}:5001/api`;
 
+let C = THEMES.kavana;
 const THEMES = {
   kavana: {
     bg: '#0f1115', panel: '#171a21', panel2: '#1f232c', border: '#272c36',
@@ -48,7 +49,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   const [theme, setTheme] = useState(() => localStorage.getItem('rf_admin_theme') || 'clasico');
-  const C = THEMES[theme];
+  C = THEMES[theme];
 
   const login = async (e) => {
     e.preventDefault();
@@ -178,17 +179,17 @@ export default function App() {
           </>
         )}
 
-        {section === 'drivers' && <DriversSection C={C} API_BASE={API_BASE} drivers={drivers} loadAll={loadAll} />}
+        {section === 'drivers' && <DriversSection API_BASE={API_BASE} drivers={drivers} loadAll={loadAll} />}
 
         {section === 'stops' && (
-          <StopsSection C={C} API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
+          <StopsSection API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
             filterDriver={filterDriver} setFilterDriver={setFilterDriver}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             from={from} setFrom={setFrom} to={to} setTo={setTo} driversList={drivers} />
         )}
 
         {section === 'signatures' && (
-          <SignaturesSection C={C} API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
+          <SignaturesSection API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
             filterDriver={filterDriver} setFilterDriver={setFilterDriver}
             from={from} setFrom={setFrom} to={to} setTo={setTo} driversList={drivers} />
         )}
@@ -221,7 +222,7 @@ export default function App() {
 const th = { padding: '10px 8px', borderBottom: `1px solid #272c36` };
 const td = { padding: '10px 8px' };
 
-function DriversSection({ C, API_BASE, drivers, loadAll }) {
+function DriversSection({ API_BASE, drivers, loadAll }) {
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [phone, setPhone] = useState('');
@@ -262,11 +263,11 @@ function DriversSection({ C, API_BASE, drivers, loadAll }) {
   );
 }
 
-function StopsSection({ C, API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo, driversList }) {
+function StopsSection({ API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo, driversList }) {
   return (
     <div>
       <h2>Repartos</h2>
-      <Filters C={C} driversList={driversList} filterDriver={filterDriver} setFilterDriver={setFilterDriver} filterStatus={filterStatus} setFilterStatus={setFilterStatus} from={from} setFrom={setFrom} to={to} setTo={setTo} />
+      <Filters driversList={driversList} filterDriver={filterDriver} setFilterDriver={setFilterDriver} filterStatus={filterStatus} setFilterStatus={setFilterStatus} from={from} setFrom={setFrom} to={to} setTo={setTo} />
       <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13}}>
         <thead><tr style={{color: C.muted, textAlign: 'left'}}><th style={th}>#</th><th style={th}>Dirección</th><th style={th}>Repartidor</th><th style={th}>Cliente</th><th style={th}>Estado</th><th style={th}>Fecha</th><th style={th}>POD</th></tr></thead>
         <tbody>
@@ -295,7 +296,7 @@ function StopsSection({ C, API_BASE, token, stops, drivers, driverName, filterDr
   );
 }
 
-function SignaturesSection({ C, API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, from, setFrom, to, setTo, driversList }) {
+function SignaturesSection({ API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, from, setFrom, to, setTo, driversList }) {
   const delivered = stops.filter(s => s.status === 'delivered');
   return (
     <div>
@@ -316,7 +317,7 @@ function SignaturesSection({ C, API_BASE, token, stops, drivers, driverName, fil
   );
 }
 
-function Filters({ C, driversList, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo }) {
+function Filters({ driversList, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo }) {
   return (
     <div style={{display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center'}}>
       <select value={filterDriver} onChange={e => setFilterDriver(e.target.value)} style={input}>

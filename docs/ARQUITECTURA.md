@@ -11,15 +11,15 @@ proyectos terminados viven fuera del VPS, igual que CleanStock:
 ```
 ┌─────────────────────┐         ┌──────────────────────────┐
 │ App Repartidor      │  HTTPS  │ Backend API (Render)     │
-│ (GitHub Pages)      │ ──────▶ │ Express + store JSON     │
-│ React PWA           │ ◀────── │ /api/* , /pods/*          │
-└─────────────────────┘         └──────────────────────────┘
-                                        ▲
-┌─────────────────────┐                 │
-│ Panel Oficinas      │  HTTPS          │
-│ Torre de Control    │ ────────────────┘
-│ (GitHub Pages       │
-│  gh-pages-admin)    │
+│ (routefleet.        │ ──────▶ │ Express + store JSON     │
+│  kavanasystems.com/ │ ◀────── │ /api/* , /pods/*          │
+│  app)               │         └──────────────────────────┘
+└─────────────────────┘                  ▲
+┌─────────────────────┐                  │
+│ Panel Oficinas      │  HTTPS           │
+│ Torre de Control    │ ─────────────────┘
+│ (routefleet.        │
+│  kavanasystems.com/ │
 └─────────────────────┘
 ```
 

@@ -9,8 +9,8 @@ oficinas hacer seguimiento de repartos por repartidor, ver firmas y KPIs.
 | Componente | Donde vive | URL |
 |---|---|---|
 | Backend API (Node/Express, store JSON) | Render | https://routefleet-api.onrender.com |
-| App del repartidor (React PWA) | GitHub Pages | https://kavanasystemsinfo-ui.github.io/kavana-RouteFleet/ |
-| Panel oficinas "Torre de Control" (React) | GitHub Pages (rama `gh-pages-admin`) | https://routefleet.kavanasystems.com (dominio propio) |
+| App del repartidor (React PWA) | GitHub Pages (`/app`) | https://routefleet.kavanasystems.com/app |
+| Panel oficinas "Torre de Control" (React) | GitHub Pages (`/`, rama `gh-pages-admin`) | https://routefleet.kavanasystems.com |
 
 El VPS solo se usa para desarrollo/documentación. Los proyectos terminados
 viven en servicios externos (Render + GitHub Pages), igual que CleanStock.
@@ -23,9 +23,9 @@ server/            Backend Express + store JSON (sin SQLite)
   src/routes/api.js      Endpoints REST
   src/services/          pdfService (POD), ocrService, aiService
   tests/                 36 tests (node --test) incl. autenticación JWT
-client/            App del repartidor (Vite + React)
-client-admin/      Panel de oficinas Torre de Control (Vite + React)
-.github/workflows/ deploy.yml (app), deploy-admin.yml (panel)
+client/            App del repartidor (Vite + React, base /app/)
+client-admin/      Panel de oficinas Torre de Control (Vite + React, base /)
+.github/workflows/ deploy-combined.yml (panel + app en gh-pages-admin)
 ```
 
 ## Desarrollo rápido
@@ -48,11 +48,11 @@ cd client-admin && npm install && npm run dev  # http://localhost:5173
   Variables obligatorias: `JWT_SECRET` (cadena fuerte y aleatoria ≥32 chars — firma
   los JWT). `OFFICE_PIN` (PIN oficina, def. `0000`), `CORS_ORIGINS` (def. github.io
   + routefleet.kavanasystems.com). Todos los endpoints exigen JWT (oficina/driver).
-- **App repartidor**: GitHub Actions `deploy.yml` → Pages en `/kavana-RouteFleet/`.
-  Secret `VITE_API_BASE=https://routefleet-api.onrender.com`.
-- **Panel oficinas**: GitHub Actions `deploy-admin.yml` → rama `gh-pages-admin`.
-  En Settings → Pages: rama `gh-pages-admin`, Custom domain `routefleet.kavanasystems.com`.
-  DNS: CNAME `routefleet` → `kavanasystemsinfo-ui.github.io`.
+- **Frontends**: un único workflow `deploy-combined.yml` builda app y panel y
+  publica en `gh-pages-admin` (panel en `/`, app en `/app`). Secret repo
+  `VITE_API_BASE=https://routefleet-api.onrender.com`. En Settings → Pages:
+  rama `gh-pages-admin`, custom domain `routefleet.kavanasystems.com`.
+- **DNS**: CNAME `routefleet` → `kavanasystemsinfo-ui.github.io`.
 
 ## Documentación
 

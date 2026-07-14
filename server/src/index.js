@@ -13,7 +13,7 @@ const PODS_DIR = path.join(process.cwd(), 'pods');
 
 // Orígenes permitidos (CORS). Por defecto admite la Pages de GitHub y cualquier
 // origen en desarrollo. Ampliable vía env CORS_ORIGINS (separado por comas).
-const ALLOWED = (process.env.CORS_ORIGINS || 'https://kavanasystemsinfo-ui.github.io').split(',').map((s) => s.trim());
+const ALLOWED = (process.env.CORS_ORIGINS || 'https://kavanasystemsinfo-ui.github.io,https://routefleet.kavanasystems.com,https://www.routefleet.kavanasystems.com').split(',').map((s) => s.trim());
 
 export function createServer(db) {
   const app = express();

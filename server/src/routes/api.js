@@ -15,9 +15,17 @@ const __dirname = path.dirname(__filename);
 // Usa siempre la capa `queries` (sin SQL directo) para ser agnostic de la BD.
 export default function apiRouter(db) {
   db = db || dbModule.initDb();
-  const { queries } = dbModule;
   const router = express.Router();
 
+  // Construye la URL absoluta de un recurso servido por este backend
+  // (ej. PODs), usando el host real de la peticion. Asi el frontend
+  // puede usarla directamente sin concatenar origenes.
+  const absoluteUrl = (req, relPath) => {
+    const host = req.get('host');
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    return `${proto}://${host}${relPath}`;
+  };
+  // Multer para subida de imagenes (incidentes)
   const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
     filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
@@ -134,9 +142,9 @@ export default function apiRouter(db) {
             stopData.receiver_name = receiverName || 'No especificado';
             try {
               const podPath = await generatePOD(stopData, signature);
-              const podUrl = '/pods/' + path.basename(podPath);
+              const podUrl = `/pods/${path.basename(podPath)}`;
               queries.savePod(db, Number(id), podUrl);
-              res.json({ success: true, pod_url: podUrl });
+              res.json({ success: true, pod_url: absoluteUrl(req, podUrl) });
               return;
             } catch (podErr) {
               console.error('❌ Error generando POD:', podErr);
@@ -199,9 +207,9 @@ export default function apiRouter(db) {
       const stop = queries.listStops(db).find((s) => String(s.id) === String(req.params.id));
       if (stop && stop.status === 'delivered' && stop.signature) {
         const podPath = generatePOD(stop, stop.signature);
-        const podUrl = '/pods/' + path.basename(podPath);
+        const podUrl = `/pods/${path.basename(podPath)}`;
         queries.savePod(db, Number(req.params.id), podUrl);
-        return res.json({ pod_url: podUrl });
+        return res.json({ pod_url: absoluteUrl(req, podUrl) });
       }
       return res.status(404).json({ error: 'Sin POD' });
     } catch (error) {

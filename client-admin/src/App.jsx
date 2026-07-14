@@ -4,7 +4,6 @@ const API_BASE = (import.meta.env.VITE_API_BASE)
   ? `${import.meta.env.VITE_API_BASE.replace(/\/$/, '')}/api`
   : `http://${window.location.hostname}:5001/api`;
 
-let C = THEMES.kavana;
 const THEMES = {
   kavana: {
     bg: '#0f1115', panel: '#171a21', panel2: '#1f232c', border: '#272c36',
@@ -18,7 +17,9 @@ const THEMES = {
   }
 };
 
-const STATUS = {
+let C = THEMES.kavana;
+
+let STATUS = {
   delivered: { label: 'Entregado', color: C.green },
   pending: { label: 'Pendiente', color: C.amber },
   incident: { label: 'Incidencia', color: C.red }
@@ -50,6 +51,11 @@ export default function App() {
 
   const [theme, setTheme] = useState(() => localStorage.getItem('rf_admin_theme') || 'clasico');
   C = THEMES[theme];
+  STATUS = {
+    delivered: { label: 'Entregado', color: C.green },
+    pending: { label: 'Pendiente', color: C.amber },
+    incident: { label: 'Incidencia', color: C.red }
+  };
 
   const login = async (e) => {
     e.preventDefault();

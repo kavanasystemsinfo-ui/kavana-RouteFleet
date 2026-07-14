@@ -15,6 +15,7 @@ const __dirname = path.dirname(__filename);
 // Usa siempre la capa `queries` (sin SQL directo) para ser agnostic de la BD.
 export default function apiRouter(db) {
   db = db || dbModule.initDb();
+  const { queries } = dbModule;
   const router = express.Router();
 
   // Construye la URL absoluta de un recurso servido por este backend

@@ -175,8 +175,9 @@ function App() {
 
   const handleDeliver = async (deliveryData) => {
     if (!activeStop.id) return;
+    const deliveredId = activeStop.id; // fijamos el id antes de recargar paradas
     try {
-      const res = await fetch(`${API_BASE}/stops/${activeStop.id}`, {
+      const res = await fetch(`${API_BASE}/stops/${deliveredId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -193,7 +194,7 @@ function App() {
         if (data.pod_url) {
           setPodUrl(toFull(data.pod_url));
         } else {
-          const podRes = await fetch(`${API_BASE}/stops/${activeStop.id}/pod`);
+          const podRes = await fetch(`${API_BASE}/stops/${deliveredId}/pod`);
           if (podRes.ok) {
             const pod = await podRes.json();
             setPodUrl(toFull(pod.pod_url));

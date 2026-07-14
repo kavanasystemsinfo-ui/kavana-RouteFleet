@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+pods
+*.db
+uploads
+.git
+.github
+dist
+client

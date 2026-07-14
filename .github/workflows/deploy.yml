@@ -31,6 +31,8 @@ jobs:
 
       - name: Build
         run: cd client && npm run build
+        env:
+          VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

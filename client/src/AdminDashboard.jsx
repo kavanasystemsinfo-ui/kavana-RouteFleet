@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, AlertTriangle, CheckCircle, Clock, FileText, Download, Settings, Save, DollarSign } from 'lucide-react';
 
-const API_BASE = `http://${window.location.hostname}:5001/api`;
+const API_BASE = (import.meta.env.VITE_API_BASE)
+  ? `${import.meta.env.VITE_API_BASE.replace(/\/$/, '')}/api`
+  : `http://${window.location.hostname}:5001/api`;
 
 const AdminDashboard = () => {
   const [data, setData] = useState({ stops: [], metrics: { total: 0, delivered: 0, incidents: 0 }, settings: {} });

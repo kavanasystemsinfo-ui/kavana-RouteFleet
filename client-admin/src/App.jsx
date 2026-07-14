@@ -4,23 +4,23 @@ const API_BASE = (import.meta.env.VITE_API_BASE)
   ? `${import.meta.env.VITE_API_BASE.replace(/\/$/, '')}/api`
   : `http://${window.location.hostname}:5001/api`;
 
-const COLORS = {
-  bg: '#0f1115',
-  panel: '#171a21',
-  panel2: '#1f232c',
-  border: '#272c36',
-  text: '#e6e9ef',
-  muted: '#8b93a1',
-  accent: '#FF3D00',
-  green: '#22c55e',
-  red: '#ef4444',
-  amber: '#f59e0b'
+const THEMES = {
+  kavana: {
+    bg: '#0f1115', panel: '#171a21', panel2: '#1f232c', border: '#272c36',
+    text: '#e6e9ef', muted: '#8b93a1', accent: '#FF3D00',
+    green: '#22c55e', red: '#ef4444', amber: '#f59e0b'
+  },
+  clasico: {
+    bg: '#f4f6f8', panel: '#ffffff', panel2: '#eef1f4', border: '#d9dee3',
+    text: '#1a2230', muted: '#6b7682', accent: '#2563eb',
+    green: '#16a34a', red: '#dc2626', amber: '#d97706'
+  }
 };
 
 const STATUS = {
-  delivered: { label: 'Entregado', color: COLORS.green },
-  pending: { label: 'Pendiente', color: COLORS.amber },
-  incident: { label: 'Incidencia', color: COLORS.red }
+  delivered: { label: 'Entregado', color: C.green },
+  pending: { label: 'Pendiente', color: C.amber },
+  incident: { label: 'Incidencia', color: C.red }
 };
 
 const AUTH_PREF = 'Bea'.concat('rer ');
@@ -46,6 +46,9 @@ export default function App() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [theme, setTheme] = useState(() => localStorage.getItem('rf_admin_theme') || 'kavana');
+  const C = THEMES[theme];
 
   const login = async (e) => {
     e.preventDefault();
@@ -97,12 +100,12 @@ export default function App() {
 
   if (!logged) {
     return (
-      <div style={{position: 'fixed', inset: 0, background: COLORS.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', color: COLORS.text}}>
-        <h1 style={{color: COLORS.accent, letterSpacing: '2px', fontWeight: 900}}>ROUTEFLEET</h1>
-        <p style={{color: COLORS.muted, marginBottom: 24}}>Torre de Control · Oficina</p>
+      <div style={{position: 'fixed', inset: 0, background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', color: C.text}}>
+        <h1 style={{color: C.accent, letterSpacing: '2px', fontWeight: 900}}>ROUTEFLEET</h1>
+        <p style={{color: C.muted, marginBottom: 24}}>Torre de Control · Oficina</p>
         <form onSubmit={login} style={{display: 'flex', flexDirection: 'column', gap: 12, width: 260}}>
-          <input value={pin} onChange={e => setPin(e.target.value)} type="password" inputMode="numeric" placeholder="PIN de oficina" style={{padding: 16, background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 10, color: COLORS.text, fontSize: 22, textAlign: 'center', letterSpacing: 6}} />
-          <button type="submit" style={{padding: 14, background: COLORS.accent, color: '#000', border: 'none', borderRadius: 10, fontWeight: 900, cursor: 'pointer'}}>ENTRAR</button>
+          <input value={pin} onChange={e => setPin(e.target.value)} type="password" inputMode="numeric" placeholder="PIN de oficina" style={{padding: 16, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 22, textAlign: 'center', letterSpacing: 6}} />
+          <button type="submit" style={{padding: 14, background: C.accent, color: '#000', border: 'none', borderRadius: 10, fontWeight: 900, cursor: 'pointer'}}>ENTRAR</button>
         </form>
       </div>
     );
@@ -117,12 +120,17 @@ export default function App() {
   const opex = (kpi.delivered * settings.cost_per_km * 8 + kpi.delivered * settings.cost_per_hour * 0.5).toFixed(2);
 
   return (
-    <div style={{display: 'flex', minHeight: '100vh', background: COLORS.bg, color: COLORS.text, fontFamily: 'system-ui, sans-serif'}}>
+    <div style={{display: 'flex', minHeight: '100vh', background: C.bg, color: C.text, fontFamily: 'system-ui, sans-serif'}}>
       {/* Sidebar */}
-      <aside style={{width: 220, background: COLORS.panel, borderRight: `1px solid ${COLORS.border}`, padding: 20, display: 'flex', flexDirection: 'column'}}>
+      <aside style={{width: 220, background: C.panel, borderRight: `1px solid ${C.border}`, padding: 20, display: 'flex', flexDirection: 'column'}}>
         <div style={{display: 'flex', alignItems: 'center', gap: 10, marginBottom: 30}}>
           <img src="/logo.png" alt="logo" style={{height: 36}} />
-          <strong style={{color: COLORS.accent, letterSpacing: 1}}>CONTROL</strong>
+          <strong style={{color: C.accent, letterSpacing: 1}}>CONTROL</strong>
+        </div>
+        <div style={{display: 'flex', gap: 6, marginBottom: 18}}>
+          {['kavana', 'clasico'].map(t => (
+            <button key={t} onClick={() => { setTheme(t); localStorage.setItem('rf_admin_theme', t); }} style={{flex: 1, padding: '8px 10px', borderRadius: 8, border: `1px solid ${C.border}`, cursor: 'pointer', fontWeight: 700, fontSize: 12, background: theme === t ? C.accent : 'transparent', color: theme === t ? '#fff' : C.text}}>{t === 'kavana' ? 'Kavana' : 'Clásico'}</button>
+          ))}
         </div>
         {[
           ['dashboard', 'Dashboard'],
@@ -131,10 +139,10 @@ export default function App() {
           ['signatures', 'Firmas'],
           ['incidents', 'Incidencias']
         ].map(([key, label]) => (
-          <button key={key} onClick={() => setSection(key)} style={{textAlign: 'left', padding: '12px 14px', marginBottom: 6, borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, background: section === key ? COLORS.accent : 'transparent', color: section === key ? '#000' : COLORS.text}}>{label}</button>
+          <button key={key} onClick={() => setSection(key)} style={{textAlign: 'left', padding: '12px 14px', marginBottom: 6, borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, background: section === key ? C.accent : 'transparent', color: section === key ? '#000' : C.text}}>{label}</button>
         ))}
-        <div style={{marginTop: 'auto', fontSize: 11, color: COLORS.muted}}>RouteFleet v1.0</div>
-        <button onClick={logout} style={{marginTop: 12, textAlign: 'left', padding: '10px 14px', borderRadius: 8, border: `1px solid ${COLORS.border}`, cursor: 'pointer', fontWeight: 700, background: 'transparent', color: COLORS.muted}}>Salir</button>
+        <div style={{marginTop: 'auto', fontSize: 11, color: C.muted}}>RouteFleet v1.0</div>
+        <button onClick={logout} style={{marginTop: 12, textAlign: 'left', padding: '10px 14px', borderRadius: 8, border: `1px solid ${C.border}`, cursor: 'pointer', fontWeight: 700, background: 'transparent', color: C.muted}}>Salir</button>
       </aside>
 
       {/* Main */}
@@ -143,14 +151,14 @@ export default function App() {
           <>
             <h2 style={{marginTop: 0}}>Dashboard</h2>
             <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))', gap: 16, marginBottom: 24}}>
-              {[['Total', kpi.total, COLORS.text], ['Entregados', kpi.delivered, COLORS.green], ['Pendientes', kpi.pending, COLORS.amber], ['Incidencias', kpi.incidents, COLORS.red], ['OPEX est.', `€${opex}`, COLORS.accent]].map(([l, v, c]) => (
-                <div key={l} style={{background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 18}}>
-                  <div style={{fontSize: 12, color: COLORS.muted}}>{l}</div>
+              {[['Total', kpi.total, C.text], ['Entregados', kpi.delivered, C.green], ['Pendientes', kpi.pending, C.amber], ['Incidencias', kpi.incidents, C.red], ['OPEX est.', `€${opex}`, C.accent]].map(([l, v, c]) => (
+                <div key={l} style={{background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18}}>
+                  <div style={{fontSize: 12, color: C.muted}}>{l}</div>
                   <div style={{fontSize: 28, fontWeight: 900, color: c}}>{v}</div>
                 </div>
               ))}
             </div>
-            <div style={{background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 18}}>
+            <div style={{background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18}}>
               <h3 style={{marginTop: 0}}>Entregas por repartidor</h3>
               {drivers.map(d => {
                 const ds = stops.filter(s => s.driver_id === d.id);
@@ -158,29 +166,29 @@ export default function App() {
                 const pct = ds.length ? Math.round(done / ds.length * 100) : 0;
                 return (
                   <div key={d.id} style={{marginBottom: 12}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: 13}}><span>{d.name}</span><span style={{color: COLORS.muted}}>{done}/{ds.length} ({pct}%)</span></div>
-                    <div style={{height: 8, background: COLORS.panel2, borderRadius: 4, marginTop: 4, overflow: 'hidden'}}>
-                      <div style={{height: '100%', width: `${pct}%`, background: COLORS.green}} />
+                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: 13}}><span>{d.name}</span><span style={{color: C.muted}}>{done}/{ds.length} ({pct}%)</span></div>
+                    <div style={{height: 8, background: C.panel2, borderRadius: 4, marginTop: 4, overflow: 'hidden'}}>
+                      <div style={{height: '100%', width: `${pct}%`, background: C.green}} />
                     </div>
                   </div>
                 );
               })}
-              {drivers.length === 0 && <div style={{color: COLORS.muted, fontSize: 13}}>No hay repartidores dados de alta.</div>}
+              {drivers.length === 0 && <div style={{color: C.muted, fontSize: 13}}>No hay repartidores dados de alta.</div>}
             </div>
           </>
         )}
 
-        {section === 'drivers' && <DriversSection API_BASE={API_BASE} drivers={drivers} loadAll={loadAll} />}
+        {section === 'drivers' && <DriversSection C={C} API_BASE={API_BASE} drivers={drivers} loadAll={loadAll} />}
 
         {section === 'stops' && (
-          <StopsSection API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
+          <StopsSection C={C} API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
             filterDriver={filterDriver} setFilterDriver={setFilterDriver}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             from={from} setFrom={setFrom} to={to} setTo={setTo} driversList={drivers} />
         )}
 
         {section === 'signatures' && (
-          <SignaturesSection API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
+          <SignaturesSection C={C} API_BASE={API_BASE} token={token} stops={filteredStops} drivers={drivers} driverName={driverName}
             filterDriver={filterDriver} setFilterDriver={setFilterDriver}
             from={from} setFrom={setFrom} to={to} setTo={setTo} driversList={drivers} />
         )}
@@ -189,22 +197,22 @@ export default function App() {
           <div>
             <h2>Incidencias</h2>
             <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13}}>
-              <thead><tr style={{color: COLORS.muted, textAlign: 'left'}}><th style={th}>Parada</th><th style={th}>Repartidor</th><th style={th}>Tipo</th><th style={th}>Nota</th></tr></thead>
+              <thead><tr style={{color: C.muted, textAlign: 'left'}}><th style={th}>Parada</th><th style={th}>Repartidor</th><th style={th}>Tipo</th><th style={th}>Nota</th></tr></thead>
               <tbody>
                 {incidents.map(inc => (
-                  <tr key={inc.id} style={{borderTop: `1px solid ${COLORS.border}`}}>
+                  <tr key={inc.id} style={{borderTop: `1px solid ${C.border}`}}>
                     <td style={td}>#{inc.stop_id}</td>
                     <td style={td}>{driverName(stops.find(s => s.id === inc.stop_id)?.driver_id)}</td>
                     <td style={td}>{inc.type}</td>
                     <td style={td}>{inc.notes}</td>
                   </tr>
                 ))}
-                {incidents.length === 0 && <tr><td style={td} colSpan={4} style={{color: COLORS.muted}}>Sin incidencias.</td></tr>}
+                {incidents.length === 0 && <tr><td style={td} colSpan={4} style={{color: C.muted}}>Sin incidencias.</td></tr>}
               </tbody>
             </table>
           </div>
         )}
-        {loading && <div style={{position: 'fixed', bottom: 16, right: 16, background: COLORS.panel2, padding: '8px 14px', borderRadius: 8, fontSize: 12}}>Actualizando…</div>}
+        {loading && <div style={{position: 'fixed', bottom: 16, right: 16, background: C.panel2, padding: '8px 14px', borderRadius: 8, fontSize: 12}}>Actualizando…</div>}
       </main>
     </div>
   );
@@ -213,7 +221,7 @@ export default function App() {
 const th = { padding: '10px 8px', borderBottom: `1px solid #272c36` };
 const td = { padding: '10px 8px' };
 
-function DriversSection({ API_BASE, drivers, loadAll }) {
+function DriversSection({ C, API_BASE, drivers, loadAll }) {
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [phone, setPhone] = useState('');
@@ -236,36 +244,36 @@ function DriversSection({ API_BASE, drivers, loadAll }) {
         <button type="submit" style={btn}>Alta repartidor</button>
       </form>
       <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13}}>
-        <thead><tr style={{color: COLORS.muted, textAlign: 'left'}}><th style={th}>Nombre</th><th style={th}>PIN</th><th style={th}>Teléfono</th><th style={th}>Estado</th><th style={th}></th></tr></thead>
+        <thead><tr style={{color: C.muted, textAlign: 'left'}}><th style={th}>Nombre</th><th style={th}>PIN</th><th style={th}>Teléfono</th><th style={th}>Estado</th><th style={th}></th></tr></thead>
         <tbody>
           {drivers.map(d => (
-            <tr key={d.id} style={{borderTop: `1px solid ${COLORS.border}`}}>
+            <tr key={d.id} style={{borderTop: `1px solid ${C.border}`}}>
               <td style={td}>{d.name}</td>
               <td style={td}>{d.pin}</td>
               <td style={td}>{d.phone}</td>
-              <td style={td}>{d.active ? <span style={{color: COLORS.green}}>Activo</span> : <span style={{color: COLORS.muted}}>Inactivo</span>}</td>
+              <td style={td}>{d.active ? <span style={{color: C.green}}>Activo</span> : <span style={{color: C.muted}}>Inactivo</span>}</td>
               <td style={td}><button onClick={() => toggle(d.id, d.active)} style={{...btn, padding: '6px 10px', fontSize: 12}}>{d.active ? 'Desactivar' : 'Activar'}</button></td>
             </tr>
           ))}
-          {drivers.length === 0 && <tr><td style={td} colSpan={5} style={{color: COLORS.muted}}>Sin repartidores.</td></tr>}
+          {drivers.length === 0 && <tr><td style={td} colSpan={5} style={{color: C.muted}}>Sin repartidores.</td></tr>}
         </tbody>
       </table>
     </div>
   );
 }
 
-function StopsSection({ API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo, driversList }) {
+function StopsSection({ C, API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo, driversList }) {
   return (
     <div>
       <h2>Repartos</h2>
-      <Filters driversList={driversList} filterDriver={filterDriver} setFilterDriver={setFilterDriver} filterStatus={filterStatus} setFilterStatus={setFilterStatus} from={from} setFrom={setFrom} to={to} setTo={setTo} />
+      <Filters C={C} driversList={driversList} filterDriver={filterDriver} setFilterDriver={setFilterDriver} filterStatus={filterStatus} setFilterStatus={setFilterStatus} from={from} setFrom={setFrom} to={to} setTo={setTo} />
       <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 13}}>
-        <thead><tr style={{color: COLORS.muted, textAlign: 'left'}}><th style={th}>#</th><th style={th}>Dirección</th><th style={th}>Repartidor</th><th style={th}>Cliente</th><th style={th}>Estado</th><th style={th}>Fecha</th><th style={th}>POD</th></tr></thead>
+        <thead><tr style={{color: C.muted, textAlign: 'left'}}><th style={th}>#</th><th style={th}>Dirección</th><th style={th}>Repartidor</th><th style={th}>Cliente</th><th style={th}>Estado</th><th style={th}>Fecha</th><th style={th}>POD</th></tr></thead>
         <tbody>
           {stops.map(s => {
             const st = STATUS[s.status] || STATUS.pending;
             return (
-              <tr key={s.id} style={{borderTop: `1px solid ${COLORS.border}`}}>
+              <tr key={s.id} style={{borderTop: `1px solid ${C.border}`}}>
                 <td style={td}>#{s.stop_number}</td>
                 <td style={td}>{s.address}</td>
                 <td style={td}>{driverName(s.driver_id)}</td>
@@ -274,20 +282,20 @@ function StopsSection({ API_BASE, token, stops, drivers, driverName, filterDrive
                 <td style={td}>{(s.created_at || '').slice(0, 10)}</td>
                 <td style={td}>
                   {s.status === 'delivered' && (
-                    <a href={`${API_BASE}/stops/${s.id}/pod?token=${token}`} target="_blank" rel="noreferrer" style={{color: COLORS.accent, fontWeight: 700}}>POD</a>
+                    <a href={`${API_BASE}/stops/${s.id}/pod?token=${token}`} target="_blank" rel="noreferrer" style={{color: C.accent, fontWeight: 700}}>POD</a>
                   )}
                 </td>
               </tr>
             );
           })}
-          {stops.length === 0 && <tr><td style={td} colSpan={7} style={{color: COLORS.muted}}>Sin paradas.</td></tr>}
+          {stops.length === 0 && <tr><td style={td} colSpan={7} style={{color: C.muted}}>Sin paradas.</td></tr>}
         </tbody>
       </table>
     </div>
   );
 }
 
-function SignaturesSection({ API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, from, setFrom, to, setTo, driversList }) {
+function SignaturesSection({ C, API_BASE, token, stops, drivers, driverName, filterDriver, setFilterDriver, from, setFrom, to, setTo, driversList }) {
   const delivered = stops.filter(s => s.status === 'delivered');
   return (
     <div>
@@ -295,20 +303,20 @@ function SignaturesSection({ API_BASE, token, stops, drivers, driverName, filter
       <Filters driversList={driversList} filterDriver={filterDriver} setFilterDriver={setFilterDriver} from={from} setFrom={setFrom} to={to} setTo={setTo} />
       <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginTop: 16}}>
         {delivered.map(s => (
-          <div key={s.id} style={{background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 14}}>
+          <div key={s.id} style={{background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14}}>
             <div style={{fontSize: 13, fontWeight: 700, marginBottom: 4}}>{s.receiver_name || 'Cliente'}</div>
-            <div style={{fontSize: 11, color: COLORS.muted, marginBottom: 8}}>{driverName(s.driver_id)} · {(s.created_at || '').slice(0, 10)}</div>
+            <div style={{fontSize: 11, color: C.muted, marginBottom: 8}}>{driverName(s.driver_id)} · {(s.created_at || '').slice(0, 10)}</div>
             <iframe title={`pod-${s.id}`} src={`${API_BASE}/stops/${s.id}/pod?token=${token}`} style={{width: '100%', height: 160, border: 'none', background: '#fff', borderRadius: 8}} />
-            <a href={`${API_BASE}/stops/${s.id}/pod?token=${token}`} target="_blank" rel="noreferrer" style={{display: 'inline-block', marginTop: 8, color: COLORS.accent, fontWeight: 700, fontSize: 12}}>Descargar PDF</a>
+            <a href={`${API_BASE}/stops/${s.id}/pod?token=${token}`} target="_blank" rel="noreferrer" style={{display: 'inline-block', marginTop: 8, color: C.accent, fontWeight: 700, fontSize: 12}}>Descargar PDF</a>
           </div>
         ))}
-        {delivered.length === 0 && <div style={{color: COLORS.muted}}>No hay firmas para este filtro.</div>}
+        {delivered.length === 0 && <div style={{color: C.muted}}>No hay firmas para este filtro.</div>}
       </div>
     </div>
   );
 }
 
-function Filters({ driversList, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo }) {
+function Filters({ C, driversList, filterDriver, setFilterDriver, filterStatus, setFilterStatus, from, setFrom, to, setTo }) {
   return (
     <div style={{display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center'}}>
       <select value={filterDriver} onChange={e => setFilterDriver(e.target.value)} style={input}>
@@ -332,5 +340,5 @@ function Filters({ driversList, filterDriver, setFilterDriver, filterStatus, set
   );
 }
 
-const input = { padding: '8px 10px', background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 13 };
-const btn = { padding: '10px 14px', background: COLORS.accent, color: '#000', border: 'none', borderRadius: 8, fontWeight: 800, cursor: 'pointer' };
+const input = { padding: '8px 10px', background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13 };
+const btn = { padding: '10px 14px', background: C.accent, color: '#000', border: 'none', borderRadius: 8, fontWeight: 800, cursor: 'pointer' };

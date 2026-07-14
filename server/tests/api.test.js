@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from '../src/index.js';
 import dbModule from '../src/db.js';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -10,12 +11,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PODS_DIR = path.join(__dirname, '../../pods');
 
 function startServer() {
-  const testDb = dbModule.initDb(':memory:');
-  const app = createServer(testDb);
+  const db = dbModule.initDb(path.join(os.tmpdir(), `rf-api-${Date.now()}.json`));
+  const app = createServer(db);
   return new Promise((resolve) => {
     const server = app.listen(0, () => {
       const { port } = server.address();
-      resolve({ server, base: `http://localhost:${port}`, db: testDb });
+      resolve({ server, base: `http://localhost:${port}`, db });
     });
   });
 }

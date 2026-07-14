@@ -10,13 +10,30 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PODS_DIR = path.join(__dirname, '../../pods');
 
+// Orígenes permitidos (CORS). Por defecto admite la Pages de GitHub y cualquier
+// origen en desarrollo. Ampliable vía env CORS_ORIGINS (separado por comas).
+const ALLOWED = (process.env.CORS_ORIGINS || 'https://kavanasystemsinfo-ui.github.io').split(',').map((s) => s.trim());
+
 export function createServer(db) {
   const app = express();
+
+  // Middleware CORS (debe ir antes de las rutas)
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (!origin || ALLOWED.includes('*') || ALLOWED.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  });
+
   app.use(express.json());
   app.use('/api', apiRouter(db));
   // Sirve los PODs generados como descarga directa.
-  if (fs.existsSync(PODS_DIR)) app.use('/pods', express.static(PODS_DIR));
-  else fs.mkdirSync(PODS_DIR, { recursive: true });
+  if (!fs.existsSync(PODS_DIR)) fs.mkdirSync(PODS_DIR, { recursive: true });
   app.use('/pods', express.static(PODS_DIR));
   return app;
 }

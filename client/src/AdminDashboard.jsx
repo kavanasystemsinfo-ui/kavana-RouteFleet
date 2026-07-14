@@ -93,7 +93,7 @@ const AdminDashboard = () => {
       {/* Header Corporativo */}
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px'}}>
         <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
-          <img src="/logo.png" alt="Kavana Logo" style={{height: '60px', width: 'auto'}} />
+          <img src="logo.png" alt="Kavana Logo" style={{height: '60px', width: 'auto'}} />
           <div>
             <h1 style={{margin: 0, fontSize: '32px', fontWeight: '900', color: '#FF3D00', letterSpacing: '-1px'}}>KAVANA ROUTEFLEET</h1>
             <h2 style={{margin: 0, fontSize: '14px', color: '#666', fontWeight: '800', letterSpacing: '2px'}}>TORRE DE CONTROL DE DESPACHO</h2>

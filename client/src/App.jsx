@@ -235,7 +235,7 @@ function App() {
     <div style={styles.container}>
       <header style={styles.header}>
         <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-          <img src="/logo.png" alt="Kavana RouteFleet" style={{height: '45px', width: 'auto'}} />
+          <img src="logo.png" alt="Kavana RouteFleet" style={{height: '45px', width: 'auto'}} />
           <div>
             <div style={{...styles.brand, fontSize: '18px'}}>KAVANA</div>
             <div style={{fontSize: '8px', color: '#666', fontWeight: '900', letterSpacing: '2px'}}>ROUTEFLEET</div>

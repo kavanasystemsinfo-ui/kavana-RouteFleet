@@ -22,7 +22,7 @@ server/            Backend Express + store JSON (sin SQLite)
   src/db.js              Capa de datos (stops, incidents, drivers, pods)
   src/routes/api.js      Endpoints REST
   src/services/          pdfService (POD), ocrService, aiService
-  tests/                 29 tests (node --test)
+  tests/                 36 tests (node --test) incl. autenticación JWT
 client/            App del repartidor (Vite + React)
 client-admin/      Panel de oficinas Torre de Control (Vite + React)
 .github/workflows/ deploy.yml (app), deploy-admin.yml (panel)
@@ -32,7 +32,7 @@ client-admin/      Panel de oficinas Torre de Control (Vite + React)
 
 ```bash
 # Backend
-cd server && npm install && npm test         # 29 tests verdes
+cd server && npm install && npm test         # 36 tests verdes (incl. JWT)
 ROUTEFLEET_DB=/tmp/dev.json PORT=5001 node src/index.js
 
 # App repartidor
@@ -45,8 +45,9 @@ cd client-admin && npm install && npm run dev  # http://localhost:5173
 ## Deploy
 
 - **Backend**: Render (Web Service, rama `main`, Root `server`, start `node src/index.js`).
-  Variables: `VITE_API_BASE` no aplica; `OFFICE_PIN` (PIN oficina, def. `0000`),
-  `CORS_ORIGINS` (def. github.io + routefleet.kavanasystems.com).
+  Variables obligatorias: `JWT_SECRET` (cadena fuerte y aleatoria ≥32 chars — firma
+  los JWT). `OFFICE_PIN` (PIN oficina, def. `0000`), `CORS_ORIGINS` (def. github.io
+  + routefleet.kavanasystems.com). Todos los endpoints exigen JWT (oficina/driver).
 - **App repartidor**: GitHub Actions `deploy.yml` → Pages en `/kavana-RouteFleet/`.
   Secret `VITE_API_BASE=https://routefleet-api.onrender.com`.
 - **Panel oficinas**: GitHub Actions `deploy-admin.yml` → rama `gh-pages-admin`.

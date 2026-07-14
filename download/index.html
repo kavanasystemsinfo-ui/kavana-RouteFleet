@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Descargar KAVANA RouteFleet</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, 'Segoe UI', Arial, sans-serif; margin: 0; background: #0f1115; color: #e6e9ef; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 40px 22px 60px; }
+    .brand { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .brand b { color: #FF3D00; }
+    h1 { font-size: 26px; margin: 10px 0 6px; }
+    p.sub { color: #8b93a1; margin: 0 0 28px; }
+    .card { background: #171a21; border: 1px solid #272c36; border-radius: 12px; padding: 22px; margin-bottom: 18px; }
+    .card h2 { margin: 0 0 12px; font-size: 18px; color: #fff; }
+    .btn { display: inline-block; background: #FF3D00; color: #fff; text-decoration: none; font-weight: 700; padding: 14px 24px; border-radius: 9px; font-size: 16px; }
+    .btn.blue { background: #2563eb; }
+    ol { margin: 8px 0 0; padding-left: 20px; line-height: 1.7; color: #c7ccd6; }
+    .qr { text-align: center; margin-top: 12px; }
+    .qr img { border: 1px solid #272c36; border-radius: 10px; background: #fff; padding: 8px; }
+    .note { font-size: 13px; color: #8b93a1; margin-top: 10px; }
+    footer { text-align: center; color: #6b7682; font-size: 12px; margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">KAVANA <b>RouteFleet</b></div>
+    <h1>Descarga la app del repartidor</h1>
+    <p class="sub">Disponible para Android (APK) y iPhone (app web).</p>
+
+    <div class="card">
+      <h2>📱 Android</h2>
+      <p class="note">Descarga el instalador oficial. Al ser fuera de Google Play, tu móvil pedirá permiso la primera vez.</p>
+      <p style="margin-top:14px;"><a class="btn" href="./routefleet.apk" download>Descargar APK</a></p>
+      <ol>
+        <li>Pulsa "Descargar APK" y luego "Descargar de todos modos" si aparece aviso.</li>
+        <li>Abre el archivo descargado y, si pide permiso, activa "Orígenes desconocidos" para tu navegador.</li>
+        <li>Instala y abre la app. Introduce el PIN que recibiste por email.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>🍎 iPhone / iPad</h2>
+      <p class="note">iOS no permite instalar APK. Usa la app web como si fuera nativa:</p>
+      <p style="margin-top:14px;"><a class="btn blue" href="../app/">Abrir app web</a></p>
+      <ol>
+        <li>Abre <a href="../app/" style="color:#FF3D00;">routefleet.kavanasystems.com/app</a> en Safari.</li>
+        <li>Pulsa el icono de compartir (cuadrado con flecha) → "Añadir a pantalla de inicio".</li>
+        <li>Listo: tendrás el icono en tu pantalla de inicio.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>⚡ Acceso rápido</h2>
+      <p class="note">Escanea con la cámara del móvil para ir directo a esta página.</p>
+      <div class="qr">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Froutefleet.kavanasystems.com%2Fdownload" alt="QR descarga" />
+      </div>
+    </div>
+
+    <footer>KAVANA RouteFleet · App de reparto profesional</footer>
+  </div>
+</body>
+</html>

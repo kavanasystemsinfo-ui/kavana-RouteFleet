@@ -27,18 +27,14 @@ export function generatePodBlob(stop, signature, geo = null) {
 
   y += 20;
   doc.text('Firma del receptor:', 50, y);
-  // Fondo oscuro para que la firma (trazos claros) resalte sobre el PDF blanco.
-  const sigY = y + 10;
-  doc.setFillColor(17, 17, 17);
-  doc.rect(50, sigY, 250, 120, 'F');
   if (signature && signature.startsWith('data:image')) {
     try {
-      doc.addImage(signature, 'PNG', 50, sigY, 250, 120);
+      doc.addImage(signature, 'PNG', 50, y + 10, 250, 120);
     } catch (e) {
-      doc.text('(firma no disponible)', 50, sigY + 50);
+      doc.text('(firma no disponible)', 50, y + 50);
     }
   } else {
-    doc.text('(firma no disponible)', 50, sigY + 50);
+    doc.text('(firma no disponible)', 50, y + 50);
   }
 
   return doc.output('blob');

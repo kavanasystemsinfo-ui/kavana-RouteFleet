@@ -43,12 +43,7 @@ export async function generatePOD(stop, signature, geo = null) {
     const imgPath = path.join(PODS_DIR, `sig_${stop.id}_${Date.now()}.png`);
     fs.writeFileSync(imgPath, Buffer.from(base64, 'base64'));
     doc.text('Firma del receptor:');
-    // Fondo oscuro para que la firma (trazos blancos sobre transparente) resalte.
-    doc.save();
-    doc.rect(doc.x, doc.y, 250, 120).fill('#111111');
-    doc.image(imgPath, doc.x, doc.y, { fit: [250, 120] });
-    doc.restore();
-    doc.moveDown();
+    doc.image(imgPath, { fit: [250, 120] });
     fs.unlinkSync(imgPath);
   } else {
     doc.text('Firma: (no disponible)');

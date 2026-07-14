@@ -171,7 +171,7 @@ const AdminDashboard = () => {
                 <td style={{padding: '20px'}}>{getStatusBadge(stop.status)}</td>
                 <td style={{padding: '20px', textAlign: 'right'}}>
                   {stop.pod_url && (
-                    <a href={stop.pod_url} target="_blank" rel="noreferrer" style={{
+                    <a href={stop.pod_url.startsWith('/') ? API_BASE + stop.pod_url : stop.pod_url} target="_blank" rel="noreferrer" style={{
                       backgroundColor: '#222', color: '#fff', textDecoration: 'none', padding: '8px 16px', 
                       borderRadius: '8px', fontSize: '12px', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '8px',
                       transition: 'background 0.2s', border: '1px solid #333'

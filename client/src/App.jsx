@@ -187,15 +187,16 @@ function App() {
       });
       setShowSignature(false);
       // El PATCH ya genera el POD y devuelve pod_url (sin carrera).
+      const toFull = (u) => (u && u.startsWith('/') ? API_BASE + u : u);
       try {
         const data = await res.json();
         if (data.pod_url) {
-          setPodUrl(data.pod_url);
+          setPodUrl(toFull(data.pod_url));
         } else {
           const podRes = await fetch(`${API_BASE}/stops/${activeStop.id}/pod`);
           if (podRes.ok) {
             const pod = await podRes.json();
-            setPodUrl(pod.pod_url);
+            setPodUrl(toFull(pod.pod_url));
           }
         }
       } catch (_) { /* POD opcional */ }

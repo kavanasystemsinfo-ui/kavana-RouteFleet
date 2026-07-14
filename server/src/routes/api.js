@@ -80,10 +80,59 @@ export default function apiRouter(db) {
     }
   });
 
-  // Obtener todas las paradas
+  // --- Repartidores (drivers) ---
+  router.get('/drivers', (req, res) => {
+    try {
+      res.json(queries.listDrivers(db));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.post('/drivers', (req, res) => {
+    try {
+      const { name, pin, phone } = req.body;
+      if (!name || !pin) return res.status(400).json({ error: 'name y pin requeridos' });
+      const id = queries.addDriver(db, name, pin, phone || '');
+      res.json({ success: true, id });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.patch('/drivers/:id', (req, res) => {
+    try {
+      const { active } = req.body;
+      if (active !== undefined) queries.setDriverActive(db, Number(req.params.id), active);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Login de oficina (PIN unico de empresa)
+  router.post('/office/login', (req, res) => {
+    try {
+      const { pin } = req.body;
+      const officePin = process.env.OFFICE_PIN || '0000';
+      if (pin !== officePin) return res.status(401).json({ error: 'PIN incorrecto' });
+      res.json({ success: true, token: 'office-session' });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Obtener todas las paradas (con filtros por repartidor/estado/fecha)
   router.get('/stops', (req, res) => {
     try {
-      res.json(queries.listStops(db));
+      const { driver_id, status, from, to } = req.query;
+      const stops = queries.listStops(db, {
+        driver_id: driver_id !== undefined ? Number(driver_id) : undefined,
+        status: status || undefined,
+        from: from || undefined,
+        to: to || undefined
+      });
+      res.json(stops);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -103,8 +152,8 @@ export default function apiRouter(db) {
   // Procesar OCR (Manual) -> crea parada
   router.post('/ocr_manual', (req, res) => {
     try {
-      const { address, stop_number } = req.body;
-      queries.addStop(db, stop_number, address, 'pending');
+      const { address, stop_number, driver_id } = req.body;
+      queries.addStop(db, stop_number, address, 'pending', driver_id ? Number(driver_id) : null);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: error.message });

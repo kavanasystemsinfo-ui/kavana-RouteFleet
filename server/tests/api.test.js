@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from '../src/index.js';
-import dbModule from '../src/db.js';
+import dbModule, { queries } from '../src/db.js';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -64,5 +64,70 @@ test('CRUD de paradas + POD: crear, entregar y consultar POD', async () => {
   } finally {
     server.close();
     if (fs.existsSync(PODS_DIR)) fs.rmSync(PODS_DIR, { recursive: true, force: true });
+  }
+});
+
+test('CRUD de repartidores + login de oficina', async () => {
+  const { server, base } = await startServer();
+  try {
+    // Crear repartidor
+    const post = await fetch(`${base}/api/drivers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Juan', pin: '1234', phone: '600123456' })
+    });
+    assert.equal(post.status, 200);
+    const list = await fetch(`${base}/api/drivers`);
+    const drivers = await list.json();
+    assert.equal(drivers.length, 1);
+    assert.equal(drivers[0].name, 'Juan');
+
+    // Login de oficina con PIN por defecto (OFFICE_PIN en env, test usa '0000')
+    const loginOk = await fetch(`${base}/api/office/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '0000' })
+    });
+    assert.equal(loginOk.status, 200);
+    const loginBad = await fetch(`${base}/api/office/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: 'wrong' })
+    });
+    assert.equal(loginBad.status, 401);
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/drivers/:id alterna activo', async () => {
+  const { server, base, db } = await startServer();
+  try {
+    const id = queries.addDriver(db, 'Luis', '1111');
+    const patch = await fetch(`${base}/api/drivers/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: false })
+    });
+    assert.equal(patch.status, 200);
+    assert.equal(queries.listDrivers(db)[0].active, false);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/stops filtra por driver_id', async () => {
+  const { server, base, db } = await startServer();
+  try {
+    const juan = queries.addDriver(db, 'Juan', '1234');
+    const ana = queries.addDriver(db, 'Ana', '9999');
+    queries.addStop(db, 1, 'C/ A 1', 'pending', juan);
+    queries.addStop(db, 2, 'C/ B 2', 'pending', ana);
+    const res = await fetch(`${base}/api/stops?driver_id=${juan}`);
+    const stops = await res.json();
+    assert.equal(stops.length, 1);
+    assert.equal(stops[0].driver_id, juan);
+  } finally {
+    server.close();
   }
 });

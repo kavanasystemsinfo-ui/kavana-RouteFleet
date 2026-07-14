@@ -155,6 +155,9 @@ function App() {
   const [showIncident, setShowIncident] = useState(false);
   const [podUrl, setPodUrl] = useState(null);
   const [stops, setStops] = useState([]);
+  const [driverId, setDriverId] = useState(() => localStorage.getItem('routefleet_driver_id') || null);
+  const [driverName, setDriverName] = useState(() => localStorage.getItem('routefleet_driver_name') || '');
+  const [showDriverGate, setShowDriverGate] = useState(() => !localStorage.getItem('routefleet_driver_id'));
   
   const [mapZoom, setMapZoom] = useState(15);
 
@@ -164,6 +167,42 @@ function App() {
       const data = await response.json();
       setStops(data);
     } catch (error) { console.error(error); }
+  };
+
+  // Identificacion del repartidor por PIN (se guarda en el movil).
+  const handleDriverLogin = async (pin) => {
+    try {
+      const res = await fetch(`${API_BASE}/drivers`);
+      const drivers = await res.json();
+      const d = drivers.find((x) => String(x.pin) === String(pin));
+      if (!d) { alert('PIN incorrecto. Pide el PIN a tu oficina.'); return; }
+      localStorage.setItem('routefleet_driver_id', d.id);
+      localStorage.setItem('routefleet_driver_name', d.name);
+      setDriverId(d.id);
+      setDriverName(d.name);
+      setShowDriverGate(false);
+    } catch (error) { console.error(error); alert('Error de conexión'); }
+  };
+
+  const handleDriverLogout = () => {
+    localStorage.removeItem('routefleet_driver_id');
+    localStorage.removeItem('routefleet_driver_name');
+    setDriverId(null);
+    setDriverName('');
+    setShowDriverGate(true);
+  };
+
+  // Tras escanear, creamos la parada etiquetada con el repartidor.
+  const handleScanComplete = async (data) => {
+    try {
+      const address = data?.detectedAddress || 'Dirección detectada';
+      await fetch(`${API_BASE}/ocr_manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stop_number: Date.now(), address, driver_id })
+      });
+    } catch (e) { console.error(e); }
+    fetchStops();
   };
 
   useEffect(() => { fetchStops(); }, []);
@@ -197,7 +236,8 @@ function App() {
         body: JSON.stringify({ 
           status: 'delivered', 
           signature: deliveryData.signature,
-          receiverName: deliveryData.receiverName
+          receiverName: deliveryData.receiverName,
+          driver_id: driverId ? Number(driverId) : null
         })
       });
       setShowSignature(false);
@@ -254,6 +294,17 @@ function App() {
 
   return (
     <div style={styles.container}>
+      {showDriverGate && (
+        <div style={{position: 'fixed', inset: 0, backgroundColor: '#000', zIndex: 20000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Inter', sans-serif"}}>
+          <img src="logo.png" alt="Kavana RouteFleet" style={{height: '60px', marginBottom: '32px'}} />
+          <h2 style={{color: '#FF3D00', fontSize: '16px', fontWeight: '900', letterSpacing: '1px', marginBottom: '8px'}}>IDENTIFICACIÓN DE REPARTIDOR</h2>
+          <p style={{color: '#666', fontSize: '12px', marginBottom: '24px', textAlign: 'center'}}>Introduce tu PIN para empezar. Se guardará en este dispositivo.</p>
+          <form onSubmit={(e) => { e.preventDefault(); handleDriverLogin(e.target.pin.value); }} style={{display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '280px'}}>
+            <input name="pin" type="password" inputMode="numeric" autoFocus placeholder="••••" style={{padding: '18px', backgroundColor: '#111', border: '1px solid #222', borderRadius: '12px', color: '#fff', fontSize: '24px', textAlign: 'center', letterSpacing: '8px', fontWeight: '900', outline: 'none'}} />
+            <button type="submit" style={{padding: '18px', backgroundColor: '#FF3D00', color: '#000', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'pointer'}}>ENTRAR</button>
+          </form>
+        </div>
+      )}
       <header style={styles.header}>
         <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
           <img src="logo.png" alt="Kavana RouteFleet" style={{height: '45px', width: 'auto'}} />
@@ -264,8 +315,8 @@ function App() {
         </div>
         <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
            <div style={{textAlign: 'right'}}>
-              <div style={{fontSize: '10px', fontWeight: '900'}}>JORGE A.</div>
-              <div style={{width: '6px', height: '6px', backgroundColor: '#FF3D00', borderRadius: '50%', marginLeft: 'auto', marginTop: '4px'}}></div>
+              <div style={{fontSize: '10px', fontWeight: '900'}}>{driverName ? driverName.toUpperCase() : 'SIN PIN'}</div>
+              <button onClick={handleDriverLogout} style={{fontSize: '8px', color: '#666', marginTop: '4px', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline'}}>cambiar</button>
            </div>
            <div style={{width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #222'}}>
               <User style={{color: '#444', width: '20px'}} />
@@ -403,7 +454,7 @@ function App() {
       </nav>
 
       <AnimatePresence>
-        {showScanner && <Scanner onScanComplete={fetchStops} onClose={() => setShowScanner(false)} />}
+        {showScanner && <Scanner onScanComplete={handleScanComplete} onClose={() => setShowScanner(false)} />}
         {showSignature && <SignaturePad onSave={handleDeliver} onClose={() => setShowSignature(false)} />}
         {showIncident && <IncidentModal stop={activeStop} onSubmit={handleIncidentSubmit} onClose={() => setShowIncident(false)} />}
       </AnimatePresence>

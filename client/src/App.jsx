@@ -176,7 +176,7 @@ function App() {
   const handleDeliver = async (deliveryData) => {
     if (!activeStop.id) return;
     try {
-      await fetch(`${API_BASE}/stops/${activeStop.id}`, {
+      const res = await fetch(`${API_BASE}/stops/${activeStop.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -186,12 +186,17 @@ function App() {
         })
       });
       setShowSignature(false);
-      // Recuperar el POD generado para ofrecer descarga al operario.
+      // El PATCH ya genera el POD y devuelve pod_url (sin carrera).
       try {
-        const podRes = await fetch(`${API_BASE}/stops/${activeStop.id}/pod`);
-        if (podRes.ok) {
-          const pod = await podRes.json();
-          setPodUrl(pod.pod_url);
+        const data = await res.json();
+        if (data.pod_url) {
+          setPodUrl(data.pod_url);
+        } else {
+          const podRes = await fetch(`${API_BASE}/stops/${activeStop.id}/pod`);
+          if (podRes.ok) {
+            const pod = await podRes.json();
+            setPodUrl(pod.pod_url);
+          }
         }
       } catch (_) { /* POD opcional */ }
       fetchStops();

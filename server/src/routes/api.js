@@ -127,14 +127,20 @@ export default function apiRouter(db) {
           signature: signature || null,
           receiver_name: receiverName || null
         });
-        // MODULO POD: si es entrega con firma, generar PDF
+        // MODULO POD: si es entrega con firma, generar PDF y devolver URL
         if (status === 'delivered' && signature) {
           const stopData = queries.listStops(db).find((s) => String(s.id) === String(id));
           if (stopData) {
             stopData.receiver_name = receiverName || 'No especificado';
-            generatePOD(stopData, signature)
-              .then((p) => console.log(`📄 POD Generado con exito: ${p}`))
-              .catch((err) => console.error('❌ Error generando POD:', err));
+            try {
+              const podPath = await generatePOD(stopData, signature);
+              const podUrl = '/pods/' + path.basename(podPath);
+              queries.savePod(db, Number(id), podUrl);
+              res.json({ success: true, pod_url: podUrl });
+              return;
+            } catch (podErr) {
+              console.error('❌ Error generando POD:', podErr);
+            }
           }
         }
       }
@@ -178,14 +184,26 @@ export default function apiRouter(db) {
     }
   });
 
-  // Obtener URL del POD de una parada, si existe
+  // Obtener URL del POD de una parada, si existe.
   router.get('/stops/:id/pod', (req, res) => {
     try {
       const podsDir = path.join(__dirname, '../../pods');
-      if (!fs.existsSync(podsDir)) return res.status(404).json({ error: 'Sin POD' });
-      const files = fs.readdirSync(podsDir).filter((f) => f.includes(`_${req.params.id}_`) && f.endsWith('.pdf'));
-      if (files.length === 0) return res.status(404).json({ error: 'Sin POD' });
-      res.json({ pod_url: `/pods/${files[0]}` });
+      const files = fs.existsSync(podsDir)
+        ? fs.readdirSync(podsDir).filter((f) => f.includes(`_${req.params.id}_`) && f.endsWith('.pdf'))
+        : [];
+      if (files.length > 0) {
+        return res.json({ pod_url: `/pods/${files[0]}` });
+      }
+      // Si no hay archivo pero la parada fue entregada con firma, regenerar al vuelo
+      // (los PODs en Render son efímeros tras spin-down).
+      const stop = queries.listStops(db).find((s) => String(s.id) === String(req.params.id));
+      if (stop && stop.status === 'delivered' && stop.signature) {
+        const podPath = generatePOD(stop, stop.signature);
+        const podUrl = '/pods/' + path.basename(podPath);
+        queries.savePod(db, Number(req.params.id), podUrl);
+        return res.json({ pod_url: podUrl });
+      }
+      return res.status(404).json({ error: 'Sin POD' });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

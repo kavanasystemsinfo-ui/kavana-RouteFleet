@@ -8,7 +8,8 @@ import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PODS_DIR = path.join(__dirname, '../../pods');
+// PODs en ./pods relativo al cwd (server/) para coincidir con pdfService.
+const PODS_DIR = path.join(process.cwd(), 'pods');
 
 // Orígenes permitidos (CORS). Por defecto admite la Pages de GitHub y cualquier
 // origen en desarrollo. Ampliable vía env CORS_ORIGINS (separado por comas).

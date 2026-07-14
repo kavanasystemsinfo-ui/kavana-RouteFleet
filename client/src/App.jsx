@@ -199,7 +199,7 @@ function App() {
   const handleIncidentSubmit = async (incidentData) => {
     if (!activeStop.id) return;
     try {
-      await fetch(`http://localhost:5001/api/stops/${activeStop.id}/incident`, {
+      await fetch(`${API_BASE}/stops/${activeStop.id}/incident`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(incidentData)

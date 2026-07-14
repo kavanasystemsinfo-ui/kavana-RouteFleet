@@ -18,6 +18,7 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import Scanner from './components/Scanner';
 import SignaturePad from './components/SignaturePad';
+import { downloadPod, generatePodBlob } from './services/podService';
 import IncidentModal from './components/IncidentModal';
 
 const styles = {
@@ -176,6 +177,19 @@ function App() {
   const handleDeliver = async (deliveryData) => {
     if (!activeStop.id) return;
     const deliveredId = activeStop.id; // fijamos el id antes de recargar paradas
+    // Generamos el POD en el navegador (descarga garantizada, sin depender del backend).
+    const stopInfo = {
+      id: deliveredId,
+      address: activeStop.address,
+      receiver_name: deliveryData.receiverName
+    };
+    const blobUrl = (() => {
+      try {
+        const blob = generatePodBlob(stopInfo, deliveryData.signature);
+        return URL.createObjectURL(blob);
+      } catch (_) { return null; }
+    })();
+    if (blobUrl) setPodUrl(blobUrl);
     try {
       const res = await fetch(`${API_BASE}/stops/${deliveredId}`, {
         method: 'PATCH',
@@ -187,7 +201,7 @@ function App() {
         })
       });
       setShowSignature(false);
-      // El PATCH ya genera el POD y devuelve pod_url (sin carrera).
+      // El backend puede devolver pod_url (si esta sincronizado); lo usamos si existe.
       const toFull = (u) => (u && u.startsWith('/') ? API_BASE + u : u);
       try {
         const data = await res.json();
@@ -200,7 +214,7 @@ function App() {
             setPodUrl(toFull(pod.pod_url));
           }
         }
-      } catch (_) { /* POD opcional */ }
+      } catch (_) { /* POD opcional: ya tenemos el local */ }
       fetchStops();
     } catch (error) { console.error(error); }
   };
@@ -318,12 +332,15 @@ function App() {
                     ENTREGAR PEDIDO <CheckCircle2 style={{width: '20px'}} />
                  </button>
                </div>
-               {podUrl && (
-                 <a href={podUrl} target="_blank" rel="noreferrer" style={{...styles.btnPrimary, marginTop: '12px', backgroundColor: '#FF3D00', color: '#000', textDecoration: 'none'}}>
-                    DESCARGAR POD (FIRMA) <Download style={{width: '20px'}} />
-                 </a>
-               )}
             </div>
+          </div>
+        )}
+
+        {podUrl && (
+          <div style={{padding: '0 24px 24px'}}>
+            <a href={podUrl} target="_blank" rel="noreferrer" style={{...styles.btnPrimary, width: '100%', justifyContent: 'center', marginTop: '12px', backgroundColor: '#FF3D00', color: '#000', textDecoration: 'none'}}>
+               DESCARGAR POD (FIRMA) <Download style={{width: '20px'}} />
+            </a>
           </div>
         )}
 

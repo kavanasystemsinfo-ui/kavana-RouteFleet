@@ -1,0 +1,65 @@
+name: Build APK Repartidor (Capacitor)
+
+# Compila la PWA del repartidor como APK Android firmado y lo publica en
+# gh-pages-admin/download/routefleet.apk para descarga directa desde el dominio.
+on:
+  workflow_dispatch:        # Se lanza manualmente cuando quieras una nueva version
+  push:
+    paths:
+      - 'client/**'
+      - 'client-admin/download/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Build PWA del repartidor
+        working-directory: client
+        env:
+          VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
+        run: |
+          npm install
+          npm run build
+
+      - name: Capacitor - anadir plataforma Android y sincronizar
+        working-directory: client
+        run: |
+          npx cap add android || true
+          npx cap sync android
+
+      - name: Firmar APK (keystore en secrets)
+        working-directory: client/android
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > app/release-key.jks
+          sed -i 's/signingConfigs { debug {/signingConfigs { release { storeFile file("release-key.jks"); storePassword System.getenv("STORE_PASSWORD"); keyAlias System.getenv("KEY_ALIAS"); keyPassword System.getenv("KEY_PASSWORD"); } debug {/' app/build.gradle
+          ./gradlew assembleRelease
+
+      - name: Preparar publicacion (solo el APK)
+        run: |
+          mkdir -p apk-publish
+          cp client/android/app/build/outputs/apk/release/app-release.apk apk-publish/routefleet.apk
+
+      - name: Publicar APK en gh-pages-admin/download
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apk-publish
+          publish_branch: gh-pages-admin
+          destination_dir: download

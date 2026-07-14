@@ -8,9 +8,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cap:add": "cap add android",
+    "cap:sync": "cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^5.7.0",
+    "@capacitor/core": "^5.7.0",
     "framer-motion": "^10.16.4",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.284.0",
@@ -19,6 +23,7 @@
     "react-signature-canvas": "^1.1.0-alpha.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^5.7.0",
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^14.1.0",
     "@types/react": "^18.2.15",

@@ -47,7 +47,7 @@ export default function App() {
   const [to, setTo] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [theme, setTheme] = useState(() => localStorage.getItem('rf_admin_theme') || 'kavana');
+  const [theme, setTheme] = useState(() => localStorage.getItem('rf_admin_theme') || 'clasico');
   const C = THEMES[theme];
 
   const login = async (e) => {

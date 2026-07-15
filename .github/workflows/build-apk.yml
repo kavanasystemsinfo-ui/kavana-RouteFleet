@@ -56,6 +56,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -- client/android/app/build.gradle
           git fetch origin gh-pages-admin
           git checkout -B gh-pages-admin origin/gh-pages-admin
           mkdir -p download

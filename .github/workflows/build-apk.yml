@@ -34,6 +34,8 @@ jobs:
         run: |
           if [ ! -d "android" ]; then ./node_modules/.bin/cap add android; fi
           ./node_modules/.bin/cap sync android
+          # Aplica la firma sin modificar el build.gradle original (sobrevive a cap sync)
+          grep -q 'release-signing.gradle' android/app/build.gradle || echo "apply from: 'release-signing.gradle'" >> android/app/build.gradle
 
       - name: Firmar APK con keystore fijo (secret ANDROID_KEYSTORE_B64)
         working-directory: client/android

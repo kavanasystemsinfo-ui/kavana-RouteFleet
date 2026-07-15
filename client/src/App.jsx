@@ -171,6 +171,27 @@ function App() {
   
   const [mapZoom, setMapZoom] = useState(15);
 
+  // Version check: avisa al repartidor si hay una version nueva del APK.
+  const APP_VERSION = '1.0.0';
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [latestVersion, setLatestVersion] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    fetch(import.meta.env.BASE_URL + 'version.json', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data || !data.version) return;
+        const cmp = (a, b) => a.split('.').map(Number).reduce((acc, n, i) => acc + n * Math.pow(1000, 2 - i), 0)
+          - b.split('.').map(Number).reduce((acc, n, i) => acc + n * Math.pow(1000, 2 - i), 0);
+        if (cmp(data.version, APP_VERSION) > 0) {
+          setLatestVersion(data.version);
+          setUpdateAvailable(true);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   const fetchStops = async () => {
     try {
       const response = await driverAuthFetch(`${API_BASE}/stops`);
@@ -308,6 +329,12 @@ function App() {
 
   return (
     <div style={styles.container}>
+      {updateAvailable && (
+        <div style={{background: '#FF3D00', color: '#000', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '800'}}>
+          <Download size={18} />
+          <span>Hay una nueva versión ({latestVersion}). <a href="/download/routefleet.apk" style={{color: '#000', textDecoration: 'underline'}}>Descárgala aquí</a>.</span>
+        </div>
+      )}
       {showDriverGate && (
         <div style={{position: 'fixed', inset: 0, backgroundColor: '#000', zIndex: 20000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Inter', sans-serif"}}>
           <img src="logo.png" alt="Kavana RouteFleet" style={{height: '60px', marginBottom: '32px'}} />

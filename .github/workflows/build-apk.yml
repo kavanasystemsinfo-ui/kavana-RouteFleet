@@ -35,13 +35,14 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
-      - name: Generar keystore y firmar APK (password en secret, clave efimera en el runner)
+      - name: Firmar APK con keystore fijo (secret ANDROID_KEYSTORE_B64)
         working-directory: client/android
         env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           KEY_ALIAS: routefleet
         run: |
-          keytool -genkeypair -v -keystore app/release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias routefleet -storepass "$STORE_PASSWORD" -keypass "$STORE_PASSWORD" -dname "CN=KAVANA RouteFleet, OU=RouteFleet, O=Kavana Systems, L=Valencia, ST=Valencia, C=ES"
+          echo "$KEYSTORE_B64" | sed '/-----/d' | base64 -d > app/release-key.jks
           sed -i 's/signingConfigs { debug {/signingConfigs { release { storeFile file("release-key.jks"); storePassword System.getenv("STORE_PASSWORD"); keyAlias "routefleet"; keyPassword System.getenv("STORE_PASSWORD"); } debug {/' app/build.gradle
           ./gradlew assembleRelease
 

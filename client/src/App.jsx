@@ -156,7 +156,7 @@ const styles = {
 
 const API_BASE = (import.meta.env.VITE_API_BASE)
   ? `${import.meta.env.VITE_API_BASE.replace(/\/$/, '')}/api`
-  : `http://${window.location.hostname}:5001/api`;
+  : 'https://routefleet-api.onrender.com/api';
 
 function App() {
   const [activeTab, setActiveTab] = useState('map');

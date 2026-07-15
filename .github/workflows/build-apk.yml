@@ -32,7 +32,7 @@ jobs:
       - name: Capacitor - anadir plataforma Android y sincronizar
         working-directory: client
         run: |
-          ./node_modules/.bin/cap add android --force
+          if [ ! -d "android" ]; then ./node_modules/.bin/cap add android; fi
           ./node_modules/.bin/cap sync android
 
       - name: Firmar APK con keystore fijo (secret ANDROID_KEYSTORE_B64)

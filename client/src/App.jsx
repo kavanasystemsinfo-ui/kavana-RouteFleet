@@ -207,7 +207,12 @@ function App() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin })
       });
-      if (!res.ok) { alert('PIN incorrecto. Pide el PIN a tu oficina.'); return; }
+      if (!res.ok) {
+        const msg = await res.json().catch(() => ({}));
+        alert(msg.error || 'PIN incorrecto. Pide el PIN a tu oficina.');
+        setShowDriverGate(true);
+        return;
+      }
       const { token, driver } = await res.json();
       localStorage.setItem('routefleet_driver_id', driver.id);
       localStorage.setItem('routefleet_driver_name', driver.name);
@@ -215,7 +220,11 @@ function App() {
       setDriverId(driver.id);
       setDriverName(driver.name);
       setShowDriverGate(false);
-    } catch (error) { console.error(error); alert('Error de conexión'); }
+    } catch (error) {
+      console.error(error);
+      alert('Error de conexión con el servidor. Inténtalo de nuevo.');
+      setShowDriverGate(true);
+    }
   };
 
   const handleDriverLogout = () => {

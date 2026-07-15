@@ -42,6 +42,12 @@ jobs:
           cp -r client/dist/* gh-pages-admin/app/
           # Pagina de descarga (APK + PWA iPhone + QR) en /download
           cp -r client-admin/download/* gh-pages-admin/download/
+          # Preserva el APK ya publicado por build-apk (si existe)
+          if curl -sf -o /tmp/routefleet.apk https://routefleet.kavanasystems.com/download/routefleet.apk; then
+            cp /tmp/routefleet.apk gh-pages-admin/download/routefleet.apk
+          fi
+          # Mantiene el custom domain vivo
+          echo "routefleet.kavanasystems.com" > gh-pages-admin/CNAME
           touch gh-pages-admin/.nojekyll
 
       - name: Publicar rama gh-pages-admin

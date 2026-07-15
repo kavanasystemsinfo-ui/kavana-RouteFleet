@@ -61,6 +61,8 @@ jobs:
           git checkout -B gh-pages-admin origin/gh-pages-admin
           mkdir -p download
           cp client/android/app/build/outputs/apk/release/app-release.apk download/routefleet.apk
-          git add download/routefleet.apk
+          # Mantiene el custom domain vivo (sin CNAME, GitHub lo borra en cada push)
+          echo "routefleet.kavanasystems.com" > CNAME
+          git add download/routefleet.apk CNAME
           git commit -m "chore: publicar APK repartidor v${GITHUB_RUN_NUMBER}" || echo "sin cambios"
           git push origin gh-pages-admin

@@ -43,7 +43,6 @@ jobs:
           KEY_ALIAS: routefleet
         run: |
           echo "$KEYSTORE_B64" | sed '/-----/d' | base64 -d > app/release-key.jks
-          sed -i 's/signingConfigs { debug {/signingConfigs { release { storeFile file("release-key.jks"); storePassword System.getenv("STORE_PASSWORD"); keyAlias "routefleet"; keyPassword System.getenv("STORE_PASSWORD"); } debug {/' app/build.gradle
           ./gradlew assembleRelease
 
       - name: Preparar publicacion (solo el APK)

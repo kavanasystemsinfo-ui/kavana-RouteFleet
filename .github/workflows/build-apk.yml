@@ -32,9 +32,8 @@ jobs:
       - name: Capacitor - anadir plataforma Android y sincronizar
         working-directory: client
         run: |
-          npm install typescript --no-save
-          npx cap add android --force || true
-          npx cap sync android
+          ./node_modules/.bin/cap add android --force
+          ./node_modules/.bin/cap sync android
 
       - name: Firmar APK con keystore fijo (secret ANDROID_KEYSTORE_B64)
         working-directory: client/android

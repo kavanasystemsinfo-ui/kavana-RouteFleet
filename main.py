@@ -4,8 +4,13 @@ import asyncio
 import httpx
 import subprocess
 import tempfile
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from typing import List, Optional, Dict, Tuple
 
 from ortools.constraint_solver import routing_enums_pb2
@@ -17,7 +22,41 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import pathlib
 
-app = FastAPI(title="Kavana Logistic", description="Optimización de rutas de reparto con ventanas de tiempo")
+# --- Configuración de entorno ---
+DEBUG = os.getenv("DEBUG", "False").lower() in ("1", "true", "yes")
+# En producción desactivamos /docs, /redoc y /openapi.json para no exponer el schema
+ENABLE_DOCS = DEBUG
+
+app = FastAPI(
+    title="Kavana Logistic",
+    description="Optimización de rutas de reparto con ventanas de tiempo",
+    docs_url="/docs" if ENABLE_DOCS else None,
+    redoc_url="/redoc" if ENABLE_DOCS else None,
+    openapi_url="/openapi.json" if ENABLE_DOCS else None,
+)
+
+# --- CORS: solo orígenes explícitos desde env (CORS_ORIGIN, separado por comas) ---
+_cors_origin = os.getenv("CORS_ORIGIN", "")
+allowed_origins = [o.strip() for o in _cors_origin.split(",") if o.strip()] or ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+# --- Rate limiting (protege contra abuso de OpenRouter/Nominatim) ---
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+# Constantes de seguridad
+MAX_UPLOAD_MB = 15
+MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
+ALLOWED_EXTENSIONS = {".txt", ".csv", ".xlsx", ".xls", ".pdf", ".docx", ".png", ".jpg", ".jpeg"}
+
 
 # Serve frontend
 frontend_path = pathlib.Path(__file__).parent / "frontend"
@@ -205,8 +244,19 @@ async def health():
     """Health check endpoint."""
     return {"status": "healthy"}
 
+# Handler global para errores 500 (no exponer tracebacks en producción)
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    if DEBUG:
+        raise exc
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Error interno del servidor. Inténtalo de nuevo."}
+    )
+
 @app.post("/api/optimizar-ruta", response_model=RouteResponse)
-async def optimizar_ruta(req: RouteRequest):
+@limiter.limit("20/minute")
+async def optimizar_ruta(request: Request, req: RouteRequest):
     """Endpoint para entrada manual (texto libre o lista de paradas)."""
     if req.paradas is None and req.document_text is not None:
         paradas_list = await extract_stops_from_text(req.document_text)
@@ -238,14 +288,31 @@ async def optimizar_ruta(req: RouteRequest):
     return resolver_vrp(paradas_list, depot_geocode, coords, req.vehicle_count)
 
 @app.post("/api/optimizar-archivo", response_model=RouteResponse)
+@limiter.limit("10/minute")
 async def optimizar_archivo(
+    request: Request,
     file: UploadFile = File(...),
     depot: Optional[str] = Form(None),
     vehicle_count: int = Form(1)
 ):
     """Endpoint para subir archivos (TXT, CSV, Excel, PDF, DOCX, PNG/JPG)."""
+    # R1: límite de tamaño (DoS)
     content = await file.read()
-    filename = file.filename.lower()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Archivo demasiado grande. Máximo {MAX_UPLOAD_MB} MB."
+        )
+
+    # R6/R7: validación de extensión permitida
+    filename = (file.filename or "").lower()
+    ext = os.path.splitext(filename)[1]
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tipo de archivo no permitido: {ext}. Permitidos: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        )
+
     paradas_list = []
 
     try:

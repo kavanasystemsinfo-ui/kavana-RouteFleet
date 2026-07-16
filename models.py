@@ -10,7 +10,7 @@ class RouteRequest(BaseModel):
     paradas: Optional[List[Stop]] = None
     document_text: Optional[str] = None
     depot: Optional[str] = None
-    vehicle_count: int = Field(1, ge=1)
+    vehicle_count: int = Field(1, ge=1, le=50, description="Número de vehículos (máx 50 para evitar DoS en OR-Tools)")
 
 class RouteResponse(BaseModel):
     orden_optimizado: List[int]

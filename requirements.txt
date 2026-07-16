@@ -4,3 +4,5 @@ python-dotenv>=1.0.0
 requests>=2.25.0
 ortools>=9.0
 pandas>=1.5
+slowapi>=0.1.9
+python-multipart>=0.0.9

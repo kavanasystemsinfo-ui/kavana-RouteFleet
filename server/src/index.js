@@ -5,6 +5,7 @@ import apiRouter from './routes/api.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { seedDrivers } from './seed.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,6 +43,9 @@ export function createServer(db) {
 // Arranque solo si se ejecuta directamente.
 if (import.meta.url === `file://${process.argv[1]}`) {
   const db = dbModule.initDb();
+  // Seed: revive el repartidor por defecto (PIN 5855) si el store arrancó vacío.
+  const seedResult = seedDrivers(db);
+  if (seedResult.created) console.log(`Seed: repartidor creado (id ${seedResult.id}, PIN ${process.env.DEFAULT_DRIVER_PIN || '5855'}).`);
   const app = createServer(db);
   const PORT = process.env.PORT || 5001;
   app.listen(PORT, () => console.log(`KAVANA RouteFleet API en puerto ${PORT}`));

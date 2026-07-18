@@ -30,8 +30,8 @@ jobs:
         env:
           VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
         run: |
-          npm install
-          npm run build
+          npm install --prefer-offline=false --no-audit
+          npm run build -- --clear-cache
 
 
       - name: Cache Bust (evitar CDN cache)

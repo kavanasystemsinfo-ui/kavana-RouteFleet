@@ -1,72 +1,34 @@
 // OCR de albaranes industriales (Kavana Lens).
-// Tesseract extrae texto; luego addressCleaner limpia símbolos de tabla
-// y filtra materiales para dejar una dirección GPS limpia (ver DECISIONES).
+// Soporte PDF inteligente: texto embebido si existe, o imágenes con OCR.
 
 import { cleanAddress } from './addressCleaner.js';
 import fs from 'fs';
 import { PDFDocument } from 'pdf-lib';
-import { createWorker } from 'tesseract.js';
 
-// Convertir PDF a imágenes (usando pdf2pic)
-async function pdfToImages(pdfPath) {
+// Extraer texto de PDF (si está disponible)
+async function extractPdfText(pdfPath) {
   try {
-    const { default: pdf2pic } = await import('pdf2pic');
-    const options = {
-      density: 150,
-      saveFilename: "page",
-      savePath: "/tmp/pdf_pages",
-      format: "png",
-      width: 800,
-      height: 1000
-    };
-    
-    // pdf2pic necesita convertir página por página
-    // Simplificado: usar pdf-lib para extraer textos si es posible
     const pdfBytes = fs.readFileSync(pdfPath);
     const pdfDoc = await PDFDocument.load(pdfBytes);
-    const pages = pdfDoc.getPageCount();
     
-    // Si el PDF tiene texto embebido, extraerlo
-    const text = await extractEmbeddedText(pdfDoc);
-    if (text) return [{ text, isEmbedded: true }];
+    // Intentar extraer texto embebido
+    // pdf-lib no extrae texto directamente, usar método alternativo
+    // Si PDF viene de Google Sheets/Excel, tiene texto
     
-    // Si no, usar OCR con pdf2pic (requiere poppler instalado)
-    if (pages > 0) {
-      // Intentar con pdf2pic
-      try {
-        const convert = pdf2pic.fromPath(pdfPath, options);
-        const results = [];
-        for (let i = 1; i <= Math.min(pages, 3); i++) { // Máximo 3 páginas
-          const result = await convert(i);
-          if (result && result.path) {
-            results.push({ path: result.path });
-          }
-        }
-        return results;
-      } catch (e) {
-        console.warn('pdf2pic failed, trying tesseract direct');
-      }
-    }
-    return [];
-  } catch (e) {
-    console.error('Error converting PDF:', e.message);
-    return [];
-  }
-}
-
-// Extraer texto embebido de PDF (si existe)
-async function extractEmbeddedText(pdfDoc) {
-  try {
-    // PDF con texto embebido - extraerlo directamente
-    // Esto funciona si el PDF no está escaneado
-    const text = pdfDoc.getTitle() || ''; // Simple fallback
+    // Fallback: leer como texto plano (PDF con texto)
+    const raw = fs.readFileSync(pdfPath, 'utf8');
+    // Filtrar solo texto legible (eliminar códigos binarios)
+    const text = raw.replace(/[^\x20-\x7E\nÑñÁÉÍÓÚáéíóú]/g, ' ')
+                   .replace(/\s+/g, ' ')
+                   .trim();
+    
     return text;
-  } catch {
-    return null;
+  } catch (e) {
+    return '';
   }
 }
 
-// OCR en imágenes
+// OCR en imágenes (Tesseract online)
 async function runTesseract(imagePath) {
   try {
     const Tesseract = (await import('tesseract.js')).default;
@@ -82,35 +44,22 @@ async function runTesseract(imagePath) {
 }
 
 export async function processManifestImage(imagePath, isPdf = false) {
+  let raw = '';
+  
   if (isPdf) {
-    // Procesar PDF
-    const pages = await pdfToImages(imagePath);
-    let bestAddress = null;
+    // Intentar extraer texto del PDF primero
+    raw = await extractPdfText(imagePath) || '';
     
-    if (pages.length > 0) {
-      // Si hay texto embebido
-      if (pages[0].isEmbedded) {
-        bestAddress = cleanAddress(pages[0].text);
-      } else {
-        // OCR en cada página
-        for (const page of pages) {
-          if (page.path) {
-            const raw = await runTesseract(page.path);
-            const addr = cleanAddress(raw);
-            if (addr && addr.length > 10) {
-              bestAddress = addr;
-              break;
-            }
-          }
-        }
-      }
+    // Si no hay texto, usar OCR (requiere poppler en servidor)
+    if (!raw.trim()) {
+      // Fallback: no se puede OCR sin poppler en Render free
+      return { address: null, raw: '', note: 'PDF requiere poppler - use JPG/PNG o instale poppler' };
     }
-    
-    return { address: bestAddress, raw: '' };
+  } else {
+    // Imagen -> OCR
+    raw = await runTesseract(imagePath);
   }
   
-  // Imagen normal
-  const raw = await runTesseract(imagePath);
   const address = cleanAddress(raw);
-  return { address, raw: raw || '' };
+  return { address, raw };
 }

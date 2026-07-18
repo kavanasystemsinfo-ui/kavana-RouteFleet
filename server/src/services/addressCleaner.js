@@ -31,6 +31,12 @@ const ADDRESS_PATTERNS = [
   /\bTravesía\s+\w+[\s\w,]*\d+/i,
   /\bGlorieta\s+\w+[\s\w,]*\d*/i,
   /\bPasaje\s+\w+[\s\w,]*\d+/i,
+  // Formatos flexibles
+  /\w+\s+\d{1,5}[\s,]+0?\d{5}/i,  // "Nombre 123, 28001"
+  /\w+[,\s]+\d{1,5}[,\s]+\d{5}/i,  // "Madrid, 45, 28001"
+  /\b\d{5}\b/,                       // Código postal 28001
+  /\b\d{1,5}\s+\w+[,\s]+\d{5}\b/i, // "45 Madrid, 28001"
+  /\w+\s+\d{1,5}\s+[A-Z]/i,        // "Mayor 12 M" (indicio de dirección)
 ];
 
 export function extractAddressLines(raw) {

@@ -172,37 +172,16 @@ export default function apiRouter(db) {
       
       const filePath = req.file.path;
       const fileType = req.file.mimetype;
-      const fileTypeFlag = req.body.type || 'image';
+      const fileTypeFlag = req.body.type || '';
       
-      let detectedAddress = null;
+      const isPdf = fileType === 'application/pdf' || fileTypeFlag === 'pdf';
+      const isCsv = fileType === 'text/csv' || fileTypeFlag === 'csv';
       
-      if (fileType === 'text/csv' || fileTypeFlag === 'csv') {
-        // Procesar CSV - buscar columna de dirección
-        const csv = fs.readFileSync(filePath, 'utf8');
-        const lines = csv.split('\n');
-        for (const line of lines) {
-          const cols = line.split(',');
-          for (const col of cols) {
-            const addr = cleanAddress(col.trim());
-            if (addr && addr.length > 10) {
-              detectedAddress = addr;
-              break;
-            }
-          }
-          if (detectedAddress) break;
-        }
-      } else if (fileType === 'application/pdf' || fileTypeFlag === 'pdf') {
-        // Procesar PDF - OCR o texto embebido
-        const result = await processManifestImage(filePath, true);
-        detectedAddress = result.address;
-      } else {
-        // Imagen -> OCR
-        const result = await processManifestImage(filePath);
-        detectedAddress = result.address;
-      }
+      const result = await processManifestImage(filePath, isPdf, isCsv);
+      const detectedAddress = result.address;
       
       // Limpiar archivo temporal
-      fs.unlinkSync(filePath);
+      try { fs.unlinkSync(filePath); } catch (e) {}
       
       if (detectedAddress) {
         res.json({ 
@@ -215,7 +194,7 @@ export default function apiRouter(db) {
       }
     } catch (error) {
       console.error('Error OCR:', error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Error interno procesando archivo' });
     }
   });
 

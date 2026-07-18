@@ -342,6 +342,38 @@ function App() {
     } catch (error) { console.error(error); }
   };
 
+  const handleOptimize = async () => {
+    try {
+      // Obtener ubicación del GPS del móvil
+      let origin = null;
+      if (navigator.geolocation) {
+        origin = await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => resolve(null),
+            { timeout: 5000 }
+          );
+        });
+      }
+      
+      const res = await driverAuthFetch(`${API_BASE}/optimize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || 'Ruta optimizada');
+        fetchStops();
+      } else {
+        alert(data.error || 'Error al optimizar');
+      }
+    } catch (error) { 
+      console.error(error);
+      alert('Error de conexión al optimizar');
+    }
+  };
+
   return (
     <div style={styles.container}>
       {updateAvailable && (
@@ -465,14 +497,24 @@ function App() {
            <div style={{padding: '24px'}} className="animate-fade">
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                 <div style={styles.stopLabel}>LISTA DE PARADAS</div>
-                {stops.length > 0 && (
-                  <button 
-                    onClick={handleClearRoute}
-                    style={{backgroundColor: '#ff444420', color: '#ff4444', border: '1px solid #ff444444', padding: '6px 12px', borderRadius: '8px', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'}}
-                  >
-                    <Trash2 size={12} /> BORRAR RUTA
-                  </button>
-                )}
+                <div style={{display: 'flex', gap: '8px'}}>
+                  {stops.length > 1 && (
+                    <button 
+                      onClick={handleOptimize}
+                      style={{backgroundColor: '#FF3D0020', color: '#FF3D00', border: '1px solid #FF3D0044', padding: '6px 12px', borderRadius: '8px', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'}}
+                    >
+                      <RefreshCcw size={12} /> OPTIMIZAR
+                    </button>
+                  )}
+                  {stops.length > 0 && (
+                    <button 
+                      onClick={handleClearRoute}
+                      style={{backgroundColor: '#ff444420', color: '#ff4444', border: '1px solid #ff444444', padding: '6px 12px', borderRadius: '8px', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'}}
+                    >
+                      <Trash2 size={12} /> BORRAR
+                    </button>
+                  )}
+                </div>
               </div>
               {stops.length === 0 ? (
                 <div style={{textAlign: 'center', padding: '40px 20px', color: '#444'}}>

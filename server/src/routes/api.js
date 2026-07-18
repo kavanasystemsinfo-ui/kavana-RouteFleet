@@ -246,9 +246,28 @@ export default function apiRouter(db) {
   // Optimizar Ruta (IA)
   router.post('/optimize', async (req, res) => {
     try {
-      const { stops } = req.body;
-      await optimizeRoute(stops);
-      res.json({ success: true });
+      const { stops, origin } = req.body;
+      const stopsList = stops || queries.listStops(db);
+      if (!stopsList || stopsList.length === 0) {
+        return res.status(400).json({ error: 'No hay paradas para optimizar' });
+      }
+      
+      const originCoords = origin || { lat: 39.47, lng: -0.38 }; // Valencia por defecto
+      const result = await optimizeRoute(stopsList, originCoords);
+      
+      // Reordenar paradas según la ruta optimizada
+      for (let i = 0; i < result.route.length; i++) {
+        const stop = result.route[i];
+        queries.updateStop(db, stop.id, { stop_number: i + 1 });
+      }
+      
+      const updated = queries.listStops(db);
+      res.json({ 
+        success: true, 
+        engine: result.engine,
+        message: result.engine === 'ai-deepseek' ? 'Ruta optimizada por IA' : 'Ruta optimizada (algoritmo local)',
+        stops: updated
+      });
     } catch (error) {
       console.error('AI Error:', error.message);
       res.status(500).json({ error: 'Error optimizando ruta: ' + error.message });

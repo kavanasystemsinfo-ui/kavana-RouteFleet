@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dbModule from '../db.js';
 import { signToken, requireAuth } from '../auth.js';
+import { cleanAddress } from '../services/addressCleaner.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -163,13 +164,53 @@ export default function apiRouter(db) {
     }
   });
 
-  // Procesar OCR (Automatico)
+  // --- OCR / Subida de albaranes ---
+  // Acepta imágenes (JPG/PNG), PDFs y CSV
   router.post('/ocr', upload.single('image'), async (req, res) => {
     try {
-      if (!req.file) return res.status(400).json({ error: 'Imagen requerida' });
-      await processManifestImage(req.file.path);
-      res.json({ success: true });
+      if (!req.file) return res.status(400).json({ error: 'Archivo requerido (imagen, PDF o CSV)' });
+      
+      const filePath = req.file.path;
+      const fileType = req.file.mimetype;
+      const fileTypeFlag = req.body.type || 'image';
+      
+      let detectedAddress = null;
+      
+      if (fileType === 'text/csv' || fileTypeFlag === 'csv') {
+        // Procesar CSV - buscar columna de dirección
+        const csv = fs.readFileSync(filePath, 'utf8');
+        const lines = csv.split('\n');
+        for (const line of lines) {
+          const cols = line.split(',');
+          for (const col of cols) {
+            const addr = cleanAddress(col.trim());
+            if (addr && addr.length > 10) {
+              detectedAddress = addr;
+              break;
+            }
+          }
+          if (detectedAddress) break;
+        }
+      } else {
+        // Imagen o PDF -> OCR
+        const result = await processManifestImage(filePath);
+        detectedAddress = result.address;
+      }
+      
+      // Limpiar archivo temporal
+      fs.unlinkSync(filePath);
+      
+      if (detectedAddress) {
+        res.json({ 
+          success: true, 
+          detectedAddress,
+          stopNumber: null
+        });
+      } else {
+        res.json({ success: false, error: 'No se detectó dirección en el archivo' });
+      }
     } catch (error) {
+      console.error('Error OCR:', error);
       res.status(500).json({ error: error.message });
     }
   });

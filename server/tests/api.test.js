@@ -65,7 +65,7 @@ test('CRUD de paradas + POD: crear, entregar y consultar POD', async () => {
     const patch = await fetch(`${base}/api/stops/${stopId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...authH(dtok) },
-      body: JSON.stringify({ status: 'delivered', signature: 'data:image/png;base64,AAA', receiverName: 'Juan' })
+      body: JSON.stringify({ status: 'delivered', signature: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAFUlEQVR4nGP8//8/AzbAhFV00EoAAFbUAw037MyjAAAAAElFTkSuQmCC', receiverName: 'Juan' })
     });
     assert.equal(patch.status, 200);
 

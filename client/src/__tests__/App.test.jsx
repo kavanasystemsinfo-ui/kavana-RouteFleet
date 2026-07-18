@@ -24,7 +24,8 @@ describe('App (KAVANA RouteFleet)', () => {
     render(<App />);
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/stops')
+        expect.stringContaining('/api/stops'),
+        expect.any(Object)
       );
     });
   });

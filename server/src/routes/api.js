@@ -375,7 +375,7 @@ export default function apiRouter(db) {
   });
 
   // Obtener URL del POD de una parada, si existe. — oficina o repartidor
-  router.get('/stops/:id/pod', requireAuth(['office', 'driver']), (req, res) => {
+  router.get('/stops/:id/pod', requireAuth(['office', 'driver']), async (req, res) => {
     try {
       const podsDir = path.join(__dirname, '../../pods');
       const files = fs.existsSync(podsDir)
@@ -388,7 +388,7 @@ export default function apiRouter(db) {
       // (los PODs en Render son efímeros tras spin-down).
       const stop = queries.listStops(db).find((s) => String(s.id) === String(req.params.id));
       if (stop && stop.status === 'delivered' && stop.signature) {
-        const podPath = generatePOD(stop, stop.signature);
+        const podPath = await generatePOD(stop, stop.signature);
         const podUrl = `/pods/${path.basename(podPath)}`;
         queries.savePod(db, Number(req.params.id), podUrl);
         return res.json({ pod_url: absoluteUrl(req, podUrl) });

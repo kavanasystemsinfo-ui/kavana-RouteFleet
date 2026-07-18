@@ -191,8 +191,12 @@ export default function apiRouter(db) {
           }
           if (detectedAddress) break;
         }
+      } else if (fileType === 'application/pdf' || fileTypeFlag === 'pdf') {
+        // Procesar PDF - OCR o texto embebido
+        const result = await processManifestImage(filePath, true);
+        detectedAddress = result.address;
       } else {
-        // Imagen o PDF -> OCR
+        // Imagen -> OCR
         const result = await processManifestImage(filePath);
         detectedAddress = result.address;
       }

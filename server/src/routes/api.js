@@ -2,6 +2,7 @@ import express from 'express';
 import { processManifestImage } from '../services/ocrService.js';
 import { optimizeRoute } from '../services/aiService.js';
 import { generatePOD } from '../services/pdfService.js';
+import { geocodeAddress } from '../services/geocode.js';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
@@ -243,7 +244,8 @@ export default function apiRouter(db) {
     }
   });
 
-  // Optimizar Ruta (IA)
+  // Optimizar Ruta (IA) — geocodifica origen + paradas y reordena en la BD.
+  // Body: { origin: { text } | { lat, lng }, stops: [{ id, address }] }
   router.post('/optimize', async (req, res) => {
     try {
       const { stops, origin } = req.body;
@@ -251,22 +253,50 @@ export default function apiRouter(db) {
       if (!stopsList || stopsList.length === 0) {
         return res.status(400).json({ error: 'No hay paradas para optimizar' });
       }
-      
-      const originCoords = origin || { lat: 39.47, lng: -0.38 }; // Valencia por defecto
-      const result = await optimizeRoute(stopsList, originCoords);
-      
-      // Reordenar paradas según la ruta optimizada
+
+      // 1) Geocodificar origen (texto -> lat/lng, o usar lat/lng directo).
+      let originCoords = null;
+      if (origin && typeof origin === 'object') {
+        if (typeof origin.lat === 'number' && typeof origin.lng === 'number') {
+          originCoords = { lat: origin.lat, lng: origin.lng };
+        } else if (origin.text) {
+          originCoords = await geocodeAddress(origin.text);
+        }
+      }
+      if (!originCoords) {
+        // Fallback: Valencia centro si no hay origen válido.
+        originCoords = { lat: 39.47, lng: -0.38 };
+      }
+
+      // 2) Geocodificar cada parada (solo las que no tengan ya lat/lng).
+      const geoStops = [];
+      for (const s of stopsList) {
+        let coord = (typeof s.lat === 'number' && typeof s.lng === 'number')
+          ? { lat: s.lat, lng: s.lng }
+          : await geocodeAddress(s.address);
+        geoStops.push({ id: s.id, address: s.address, lat: coord?.lat ?? null, lng: coord?.lng ?? null });
+      }
+      const unlocated = geoStops.filter((s) => s.lat === null);
+      if (unlocated.length > 0) {
+        console.warn('Paradas no geocodificadas:', unlocated.map((s) => s.address));
+      }
+
+      // 3) Optimizar (IA DeepSeek o fallback greedy local).
+      const result = await optimizeRoute(geoStops, originCoords);
+
+      // 4) Reordenar paradas en la BD según la ruta optimizada.
       for (let i = 0; i < result.route.length; i++) {
         const stop = result.route[i];
         queries.updateStop(db, stop.id, { stop_number: i + 1 });
       }
-      
+
       const updated = queries.listStops(db);
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         engine: result.engine,
         message: result.engine === 'ai-deepseek' ? 'Ruta optimizada por IA' : 'Ruta optimizada (algoritmo local)',
-        stops: updated
+        stops: updated,
+        unlocated: unlocated.map((s) => s.address)
       });
     } catch (error) {
       console.error('AI Error:', error.message);

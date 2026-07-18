@@ -171,6 +171,11 @@ function App() {
   
   const [mapZoom, setMapZoom] = useState(15);
 
+  // Origen de salida configurable (no GPS en vivo): el repartidor lo fija
+  // cuando recibe el albarán, aunque sea el día antes. Persiste en localStorage.
+  const [originText, setOriginText] = useState(() => localStorage.getItem('routefleet_origin') || '');
+  const [optimizing, setOptimizing] = useState(false);
+
   // Version check: avisa al repartidor si hay una version nueva del APK.
   const APP_VERSION = '1.0.0';
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -344,34 +349,53 @@ function App() {
 
   const handleOptimize = async () => {
     try {
-      // Obtener ubicación del GPS del móvil
-      let origin = null;
-      if (navigator.geolocation) {
-        origin = await new Promise((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => resolve(null),
-            { timeout: 5000 }
-          );
-        });
+      if (!originText.trim()) {
+        alert('Primero indica tu ORIGEN DE SALIDA arriba (ej. "Almacén Kavana, Valencia").');
+        return;
       }
-      
+      if (stops.length < 2) {
+        alert('Necesitas al menos 2 paradas para optimizar.');
+        return;
+      }
+      setOptimizing(true);
       const res = await driverAuthFetch(`${API_BASE}/optimize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ origin })
+        body: JSON.stringify({
+          origin: { text: originText },
+          stops: stops.map((s) => ({ id: s.id, address: s.address }))
+        })
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message || 'Ruta optimizada');
+        const engineLabel = data.engine === 'ai-deepseek' ? 'IA (DeepSeek)' : 'Algoritmo local';
+        let msg = `Ruta optimizada con ${engineLabel}. Orden guardado en el servidor.`;
+        if (data.unlocated && data.unlocated.length > 0) {
+          msg += `\n\n${data.unlocated.length} dirección(es) no se pudieron geocodificar y se dejaron al final.`;
+        }
+        alert(msg);
         fetchStops();
       } else {
         alert(data.error || 'Error al optimizar');
       }
-    } catch (error) { 
+    } catch (error) {
       console.error(error);
       alert('Error de conexión al optimizar');
+    } finally {
+      setOptimizing(false);
     }
+  };
+
+  // Abre Google Maps para que el repartidor elija su punto de salida y lo copie.
+  const openOriginPicker = () => {
+    window.open('https://www.google.com/maps/search/?api=1&query=valencia', '_blank');
+  };
+
+  // Guarda el origen de salida (persiste en localStorage).
+  const handleOriginChange = (e) => {
+    const val = e.target.value;
+    setOriginText(val);
+    localStorage.setItem('routefleet_origin', val);
   };
 
   return (
@@ -495,17 +519,36 @@ function App() {
 
         {activeTab === 'list' && (
            <div style={{padding: '24px'}} className="animate-fade">
+              {/* ORIGEN DE SALIDA + OPTIMIZAR */}
+              <div style={{backgroundColor: '#111', border: '1px solid #222', borderRadius: '16px', padding: '16px', marginBottom: '20px'}}>
+                <div style={{...styles.stopLabel, marginBottom: '10px'}}>ORIGEN DE SALIDA</div>
+                <div style={{display: 'flex', gap: '8px'}}>
+                  <input
+                    value={originText}
+                    onChange={handleOriginChange}
+                    placeholder="Ej: Almacén Kavana, Valencia"
+                    style={{flex: 1, padding: '12px 14px', backgroundColor: '#000', border: '1px solid #333', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: '700', outline: 'none'}}
+                  />
+                  <button
+                    onClick={openOriginPicker}
+                    title="Buscar en el mapa"
+                    style={{backgroundColor: '#222', border: '1px solid #333', borderRadius: '10px', color: '#FF3D00', padding: '0 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                  >
+                    <Navigation size={18} />
+                  </button>
+                </div>
+                <button
+                  onClick={handleOptimize}
+                  disabled={optimizing}
+                  style={{...styles.btnPrimary, marginTop: '12px', backgroundColor: optimizing ? '#663300' : '#FF3D00', fontSize: '13px', padding: '14px'}}
+                >
+                  {optimizing ? 'OPTIMIZANDO...' : 'OPTIMIZAR RUTA (IA)'}
+                </button>
+              </div>
+
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                 <div style={styles.stopLabel}>LISTA DE PARADAS</div>
                 <div style={{display: 'flex', gap: '8px'}}>
-                  {stops.length > 1 && (
-                    <button 
-                      onClick={handleOptimize}
-                      style={{backgroundColor: '#FF3D0020', color: '#FF3D00', border: '1px solid #FF3D0044', padding: '6px 12px', borderRadius: '8px', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'}}
-                    >
-                      <RefreshCcw size={12} /> OPTIMIZAR
-                    </button>
-                  )}
                   {stops.length > 0 && (
                     <button 
                       onClick={handleClearRoute}

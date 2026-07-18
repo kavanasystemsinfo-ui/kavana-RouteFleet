@@ -6,6 +6,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE)
   ? `${import.meta.env.VITE_API_BASE.replace(/\/$/, '')}/api`
   : `http://${window.location.hostname}:5001/api`;
 
+// Scanner v2 - Mobile UI + PDF/CSV support - 2026-07-18
 const Scanner = ({ onScanComplete, onClose }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState('select'); // select, scanning, success, error

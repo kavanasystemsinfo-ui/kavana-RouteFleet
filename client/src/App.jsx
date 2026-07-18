@@ -236,15 +236,25 @@ function App() {
     setShowDriverGate(true);
   };
 
-  // Tras escanear, creamos la parada etiquetada con el repartidor.
+  // Tras escanear, creamos las paradas (una o múltiples)
   const handleScanComplete = async (data) => {
     try {
-      const address = data?.detectedAddress || 'Dirección detectada';
-      await driverAuthFetch(`${API_BASE}/ocr_manual`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stop_number: Date.now(), address, driver_id })
-      });
+      if (data?.addresses && data.addresses.length > 1) {
+        // Múltiples direcciones: usar endpoint bulk
+        await driverAuthFetch(`${API_BASE}/stops/bulk`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ addresses: data.addresses, driver_id })
+        });
+      } else {
+        // Una sola dirección
+        const address = data?.detectedAddress || data?.addresses?.[0] || 'Dirección detectada';
+        await driverAuthFetch(`${API_BASE}/ocr_manual`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stop_number: Date.now(), address, driver_id })
+        });
+      }
     } catch (e) { console.error(e); }
     fetchStops();
   };

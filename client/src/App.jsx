@@ -244,7 +244,7 @@ function App() {
         await driverAuthFetch(`${API_BASE}/stops/bulk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ addresses: data.addresses, driver_id })
+          body: JSON.stringify({ addresses: data.addresses, driver_id: driverId })
         });
       } else {
         // Una sola dirección
@@ -252,7 +252,7 @@ function App() {
         await driverAuthFetch(`${API_BASE}/ocr_manual`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stop_number: Date.now(), address, driver_id })
+          body: JSON.stringify({ stop_number: Date.now(), address, driver_id: driverId })
         });
       }
     } catch (e) { console.error(e); }

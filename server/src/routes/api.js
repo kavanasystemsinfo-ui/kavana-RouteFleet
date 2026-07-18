@@ -178,16 +178,29 @@ export default function apiRouter(db) {
       fs.writeFileSync(tmpPath, buffer);
       
       const result = await processManifestImage(tmpPath, isPdf, isCsv);
-      const detectedAddress = result.address;
+      
+      // Extraer TODAS las direcciones encontradas
+      let addresses = [];
+      if (result.raw) {
+        // Buscar todas las líneas que contienen direcciones
+        const lines = result.raw.split('\n');
+        for (const line of lines) {
+          const addr = cleanAddress(line.trim());
+          if (addr && addr.length > 5) {
+            addresses.push(addr);
+          }
+        }
+      }
       
       // Limpiar archivo temporal
       try { fs.unlinkSync(tmpPath); } catch (e) {}
       
-      if (detectedAddress) {
+      if (addresses.length > 0) {
         res.json({ 
           success: true, 
-          detectedAddress,
-          stopNumber: null
+          addresses,
+          detectedAddress: addresses[0], // Primera dirección para compatibilidad
+          totalAddresses: addresses.length
         });
       } else {
         res.json({ success: false, error: 'No se detectó dirección en el archivo' });

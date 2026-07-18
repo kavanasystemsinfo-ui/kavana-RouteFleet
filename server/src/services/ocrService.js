@@ -43,56 +43,37 @@ function isBinaryFile(path) {
   } catch { return true; }
 }
 
-// Extraer texto de PDF (binario)
+// Extraer texto de PDF usando pdftotext (poppler-utils)
 async function extractPdfText(pdfPath) {
   try {
-    // Intentar con pdf-lib si está disponible
-    const pdfLib = await import('pdf-lib').catch(() => null);
-    if (pdfLib && pdfLib.PDFDocument) {
-      try {
-        const pdfBytes = fs.readFileSync(pdfPath);
-        const pdfDoc = await pdfLib.PDFDocument.load(pdfBytes);
-        // pdf-lib no extrae texto directamente, pero confirma que es PDF válido
-        console.log(`PDF con ${pdfDoc.getPageCount()} páginas - intentando extracción de texto`);
-      } catch (e) {
-        console.warn('pdf-lib no pudo cargar PDF:', e.message);
-      }
-    }
-    
-    // Fallback universal: leer como texto plano y extraer strings legibles
-    const buffer = fs.readFileSync(pdfPath, 'utf8');
-    
-    // Extraer strings que pueden ser direcciones (patrones comunes en PDFs)
-    const addressPatterns = [
-      /Calle\s+\w+[\s\w,]*\d+/gi,
-      /Avenida\s+\w+[\s\w,]*\d+/gi,
-      /Carrer\s+\w+[\s\w,]*\d+/gi,
-      /Ronda\s+\w+[\s\w,]*\d+/gi,
-      /Paseo\s+\w+[\s\w,]*\d+/gi,
-      /Plaza\s+\w+[\s\w,]*\d+/gi,
-      /Ctra\.\s+\w+[\s\w,]*\d+/gi,
-      /Camino\s+\w+[\s\w,]*\d+/gi,
-      /C\/\s*\w+[\s\w,]*\d+/gi,
-    ];
-    
-    let found = '';
-    for (const pattern of addressPatterns) {
-      const match = buffer.match(pattern);
-      if (match) {
-        found += match.join('\n') + '\n';
-      }
-    }
-    
-    if (found.trim()) return found;
-    
-    // Si no hay direcciones, extraer todo texto legible
-    const text = buffer.replace(/[^\x20-\x7E\n\u00C0-\u00FFÁÉÍÓÚÑáéíóúñ]/g, ' ')
-                       .replace(/\s+/g, ' ')
-                       .trim();
+    // Usar pdftotext para extraer texto correctamente
+    const { execSync } = await import('child_process');
+    const text = execSync(`pdftotext -layout "${pdfPath}" -`, { 
+      encoding: 'utf8',
+      timeout: 10000,
+      maxBuffer: 1024 * 1024
+    });
     return text;
   } catch (e) {
-    console.warn('Error extrayendo texto de PDF:', e.message);
-    return '';
+    console.warn('Error extrayendo texto de PDF con pdftotext:', e.message);
+    // Fallback: leer como texto plano
+    try {
+      const buffer = fs.readFileSync(pdfPath, 'utf8');
+      // Buscar direcciones en el PDF crudo
+      const addressPatterns = [
+        /Calle\s+\w+[\s\w,]*\d+/gi,
+        /Avenida\s+\w+[\s\w,]*\d+/gi,
+        /Plaza\s+\w+[\s\w,]*\d+/gi,
+      ];
+      let found = '';
+      for (const pattern of addressPatterns) {
+        const match = buffer.match(pattern);
+        if (match) found += match.join('\n') + '\n';
+      }
+      return found || '';
+    } catch {
+      return '';
+    }
   }
 }
 

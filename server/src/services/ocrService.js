@@ -6,7 +6,7 @@
 import { cleanAddress } from './addressCleaner.js';
 import fs from 'fs';
 
-// OCR con Tesseract (solo si está instalado)
+// OCR en imágenes (Tesseract online)
 async function runTesseract(imagePath) {
   try {
     // Dynamic import - solo falla si no está instalado
@@ -22,6 +22,25 @@ async function runTesseract(imagePath) {
     console.warn('Tesseract no disponible:', e.message);
     return null;
   }
+}
+
+// Detectar si un archivo es binario (imagen/PDF) vs texto
+function isBinaryFile(path) {
+  try {
+    const buf = fs.readFileSync(path);
+    // Si el archivo empieza con bytes típicos de imagen/PDF, es binario
+    const signatures = {
+      jpg: [0xFF, 0xD8, 0xFF],
+      png: [0x89, 0x50, 0x4E, 0x47],
+      gif: [0x47, 0x49, 0x46],
+      pdf: [0x25, 0x50, 0x44, 0x46],
+      webp: [0x52, 0x49, 0x46, 0x46],
+    };
+    for (const [, sig] of Object.entries(signatures)) {
+      if (sig.every((b, i) => buf[i] === b)) return true;
+    }
+    return false;
+  } catch { return true; }
 }
 
 // Extraer texto de PDF (binario)
@@ -96,17 +115,20 @@ export async function processManifestImage(imagePath, isPdf = false, isCsv = fal
   } else if (isPdf) {
     raw = await extractPdfText(imagePath);
   } else {
-    // Imagen: intentar OCR primero, fallback a lectura de metadatos
+    // Imagen: intentar OCR primero, fallback solo si es texto legible
     const ocrResult = await runTesseract(imagePath);
-    if (ocrResult) {
+    if (ocrResult && ocrResult.trim()) {
       raw = ocrResult;
-    } else {
-      // Fallback: leer el archivo como texto (puede funcionar para capturas)
+    } else if (!isBinaryFile(imagePath)) {
+      // Fallback: leer como texto (solo si no es binario)
       try {
         raw = fs.readFileSync(imagePath, 'utf8').replace(/[^\x20-\x7E\nÁÉÍÓÚÑáéíóúñ]/g, ' ').replace(/\s+/g, ' ').trim();
       } catch (e) {
         raw = '';
       }
+    } else {
+      // Es imagen binaria sin OCR disponible
+      raw = '';
     }
   }
   

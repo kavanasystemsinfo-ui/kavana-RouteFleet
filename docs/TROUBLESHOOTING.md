@@ -49,9 +49,7 @@ remota (`server.url`) que estaba rota.
 **Solución:**
 - Rellenar el secret `VITE_API_BASE` = `https://routefleet-api.onrender.com` en
   GitHub (Settings → Secrets → Actions).
-- Relanzar `build-apk` (Run workflow, no Re-run) y redesplegar la web.
-- El `capacitor.config.ts` actual NO usa `server.url`: el APK carga sus assets
-  locales con `VITE_API_BASE` embebido. Más robusto.
+- Relanzar el workflow `deploy-combined.yml` para redesplegar la web.
 
 ---
 
@@ -70,55 +68,17 @@ escriben `CNAME` en cada push. No debería volver a pasar.
 
 ---
 
-## 4. El workflow build-apk falla
+## 4. Estrategia de distribución de la app (decisión 15/07/2026)
 
-**Errores vistos y solución:**
-
-| Error | Causa | Solución |
-|---|---|---|
-| `Could not find installation of TypeScript` | Capacitor 5 necesita TS para leer `capacitor.config.ts` | `npm install -D typescript` (ya añadido) |
-| `error: unknown option '--force'` en `cap add android` | Capacitor 5 no acepta `--force` | quitar `--force` |
-| `android platform has not been added yet` | `cap add` no corrió (por `--force` o `npx` mal resuelto) | usar `./node_modules/.bin/cap add android` |
-| `Could not get unknown property 'release'` en Gradle | `signingConfigs` huérfano tras `cap sync` pisar build.gradle | firma en `release-signing.gradle` externo (sobrevive a sync) |
-| `app-release.apk: No such file` | el APK no se firmó (sin `release-signing.gradle`) | aplicado en `ac7ea72` |
-| `Please commit your changes... would be overwritten by checkout` | build.gradle modificado sucio al cambiar rama | `git checkout -- client/android/app/build.gradle` antes del checkout |
-
-**Regla de oro:** siempre **Run workflow** (nuevo), nunca "Re-run" sobre un run
-fallido (ejecuta el YAML viejo del commit anterior).
-
----
-
-## 5. "Run workflow" vs "Re-run"
-
-- **Re-run** (dentro de un run fallido): reejecuta el YAML tal como estaba
-  cuando falló. No sirve para probar fixes.
-- **Run workflow** (página del workflow, arriba a la derecha): lanza uno fresco
-  contra `main` HEAD. Usar siempre esto tras un push.
-
----
-
-## 6. El APK no se actualiza solo tras reinstalar
-
-**Diseño:** el APK está firmado con un **keystore fijo** (generado en el PC de
-Jorge, secret `ANDROID_KEYSTORE_B64`). Al subir una nueva versión, el repartidor
-**actualiza encima** (no desinstala). El banner de "hay nueva versión" consulta
-`/app/version.json` y enlaza a `/download/routefleet.apk`.
-
----
-
-## 7. Estrategia de distribución de la app (decisión 15/07/2026)
-
-- **Canal principal:** PWA en `/app` + "Añadir a pantalla de inicio"
+- **Canal único:** PWA en `/app` + "Añadir a pantalla de inicio"
   (Android Chrome / iPhone Safari). Profesional, se actualiza sola, sin build.
-- **Alternativa:** APK Capacitor descargable en `/download/routefleet.apk`
-  (keystore fijo). Channel secundario para clientes que lo exijan.
-- **NO** seguir debugueando Capacitor como wrapper de la web: coste alto
-  (build 3-4 min, sin DevTools en móvil). Si un cliente exige APK nativo
-  tradicional, generarlo vía **Bubblewrap/TWA** (1 comando, reusa keystore).
+- El APK (Capacitor) fue **descartado** como canal de distribución por su alto
+  coste de mantenimiento (build 3-4 min, sin DevTools en móvil). No se genera ni
+  se distribuye.
 
 ---
 
-## 8. Verificación rápida de salud
+## 5. Verificación rápida de salud
 
 ```bash
 # Backend vivo y CORS ok
@@ -129,7 +89,7 @@ curl -s -i https://routefleet-api.onrender.com/api/settings \
 curl -s -X POST https://routefleet-api.onrender.com/api/drivers/login \
   -H "Content-Type: application/json" -d '{"pin":"5855"}'
 
-# Sitio y APK
-curl -o /dev/null -w "panel %{http_code}\n" https://routefleet.kavanasystems.com/
-curl -o /dev/null -w "apk %{http_code}\n" https://routefleet.kavanasystems.com/download/routefleet.apk
+# Sitio y app
+curl -o /dev/null -w "panel %{http_code}\\n" https://routefleet.kavanasystems.com/
+curl -o /dev/null -w "app %{http_code}\\n" https://routefleet.kavanasystems.com/app/
 ```

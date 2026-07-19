@@ -38,6 +38,10 @@ Store JSON con interfaz agnóstica (`initDb()`, `queries.*`):
 - `pods`: `{[stopId]: url}`
 
 ## Servicios
-- `pdfService.js`: genera el POD (PDF) con firma negra sobre blanco.
-- `ocrService.js`: procesa imagen de albarán (stub/IA).
-- `aiService.js`: optimización de ruta (stub/IA).
+- `pdfService.js`: genera el POD (PDF) con firma negra sobre blanco (pdfkit).
+- `ocrService.js`: OCR con Tesseract.js + pdftotext (poppler) + fallback a regex de direcciones. Detección de binario por magic bytes.
+- `aiService.js`: optimización de ruta con DeepSeek vía OpenRouter + fallback a algoritmo greedy local (sin red).
+- `routeOptimizer.js`: algoritmo greedy de optimización de rutas (fallback local).
+- `geocode.js`: geocodificación de direcciones con OpenStreetMap Nominatim + caché.
+- `addressCleaner.js`: limpieza y normalización de direcciones extraídas vía OCR.
+- `emailService.js`: envío de email de bienvenida al repartidor con instrucciones y PIN.

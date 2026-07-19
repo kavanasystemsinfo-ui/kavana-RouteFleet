@@ -20,9 +20,9 @@ curl -s -X POST https://routefleet-api.onrender.com/api/drivers/login \
 
 **Solución inmediata (demo):** recrear el repartidor vía API o panel.
 ```bash
-# Obtener token oficina (PIN 4374 por defecto)
+# Obtener token oficina (PIN 0000 por defecto)
 TOKEN=$(curl -s -X POST https://routefleet-api.onrender.com/api/office/login \
-  -H "Content-Type: application/json" -d '{"pin":"4374"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+  -H "Content-Type: application/json" -d '{"pin":"0000"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
 # Crear repartidor
 curl -s -X POST https://routefleet-api.onrender.com/api/drivers \
   -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
@@ -40,10 +40,10 @@ debería pasar. Si pasa, verificar el secret `VITE_API_BASE` en GitHub.
 
 ---
 
-## 2. Pantalla en blanco al abrir la app (APK o PWA)
+## 2. Pantalla en blanco al abrir la app (PWA)
 
 **Causa:** `VITE_API_BASE` no inyectado en el build → la app no sabe a qué
-backend llamar y no renderiza. O bien la WebView del APK apuntaba a la PWA
+backend llamar y no renderiza. O bien el navegador tiene una versión
 remota (`server.url`) que estaba rota.
 
 **Solución:**

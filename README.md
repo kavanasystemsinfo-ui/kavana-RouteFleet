@@ -23,7 +23,7 @@ server/            Backend Express + store JSON (sin SQLite)
   src/routes/api.js      Endpoints REST
   src/services/          pdfService (POD), ocrService, aiService
   tests/                 36 tests (node --test) incl. autenticación JWT
-client/            App del repartidor (Vite + React, base /app/)
+client/            App del repartidor (Vite + React PWA, base /app/)
 client-admin/      Panel de oficinas Torre de Control (Vite + React, base /)
 .github/workflows/ deploy-combined.yml (panel + app en gh-pages-admin)
 ```

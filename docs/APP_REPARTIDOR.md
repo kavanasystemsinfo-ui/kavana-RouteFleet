@@ -8,7 +8,7 @@ industrial, pensada para móvil.
 Al abrir la app, si no hay token guardado, pide el PIN del repartidor.
 `POST /api/drivers/login` valida el PIN y devuelve un **JWT** que se guarda
 en `localStorage` (`routefleet_driver_token`). Todas las llamadas del
-repartidor envían ese JWT en `Authorization: Bearer ***.
+repartidor envían ese JWT en `Authorization: Bearer ***`
 
 ## Funciones
 - **Carga**: escáner de albarán (cámara) → `POST /api/ocr` (IA) → crea parada
@@ -19,6 +19,13 @@ repartidor envían ese JWT en `Authorization: Bearer ***.
   navegador (jsPDF) y descarga garantizada (`DESCARGAR POD`). También sube la
   firma al backend.
 - **Incidencia**: foto + nota → `POST /stops/:id/incident` (requiere JWT driver).
+
+## Distribución
+La app se distribuye exclusivamente como **PWA** (Progressive Web App):
+- El repartidor abre `https://routefleet.kavanasystems.com/app` en su navegador
+  móvil y pulsa "Añadir a pantalla de inicio".
+- Funciona como app nativa: icono en el móvil, pantalla completa, sin necesidad
+  de Google Play, se actualiza automáticamente.
 
 ## Variables
 - `VITE_API_BASE` (build-time) → `https://routefleet-api.onrender.com`

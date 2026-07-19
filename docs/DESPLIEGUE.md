@@ -15,7 +15,6 @@ El VPS solo se usa para desarrollo/documentación.
 - Variables obligatorias: `JWT_SECRET` (cadena ≥32 chars aleatoria),
   `OFFICE_PIN` (PIN oficina, def. `0000`), `CORS_ORIGINS`
   (def. github.io + routefleet.kavanasystems.com).
-  `ROUTEFLEET_DB` (ruta del archivo JSON de datos; ver abajo).
 - **Nota**: el auto-deploy puede quedar fijado a un commit viejo. Tras push de
   cambios al backend, pulsa **Manual Deploy** para aplicar `main` HEAD.
 

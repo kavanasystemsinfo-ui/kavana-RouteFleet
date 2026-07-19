@@ -6,7 +6,7 @@
 import { greedyRoute } from './routeOptimizer.js';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const AUTH_PREFIX = 'B' + 'earer ';
+const AUTH_PREFIX = 'Bearer ';
 
 async function callDeepSeek(stops, origin) {
   const apiKey = process.env.OPENROUTER_API_KEY;

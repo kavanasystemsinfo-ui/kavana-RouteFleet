@@ -72,8 +72,7 @@ export function requireAuth(roles = []) {
       req.user = payload;
       next();
     } catch (e) {
-      const status = /expir/i.test(e.message) ? 401 : 401;
-      res.status(status).json({ error: e.message });
+      res.status(401).json({ error: e.message });
     }
   };
 }

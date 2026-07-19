@@ -48,5 +48,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (seedResult.created) console.log(`Seed: repartidor creado (id ${seedResult.id}, PIN ${process.env.DEFAULT_DRIVER_PIN || '5855'}).`);
   const app = createServer(db);
   const PORT = process.env.PORT || 5001;
+
+  // Advertencia si OFFICE_PIN es el defecto (0000) en producción
+  if (process.env.OFFICE_PIN === '0000' || !process.env.OFFICE_PIN) {
+    console.warn('⚠️  OFFICE_PIN usando valor por defecto (0000). Cambiar en producción vía variable de entorno.');
+  }
+  // Advertencia si JWT_SECRET es el fallback de desarrollo
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'routefleet-dev-secret-change-me') {
+    console.warn('⚠️  JWT_SECRET usando valor por defecto o fallback de desarrollo. Configurar con un valor fuerte y aleatorio en producción.');
+  }
+
   app.listen(PORT, () => console.log(`KAVANA RouteFleet API en puerto ${PORT}`));
 }

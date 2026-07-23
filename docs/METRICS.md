@@ -4,7 +4,7 @@
 |---------|-------|
 | **Archivos de código** | ~40 |
 | **Líneas de código** | ~8.000 |
-| **Tests** | 28 (26 pasan, 2 fallan) |
+| **Tests** | 40 (38 backend + 2 frontend, todos pasan) |
 | **Commits** | +40 |
 | **Lenguajes** | JavaScript, JSX, CSS, YAML |
 

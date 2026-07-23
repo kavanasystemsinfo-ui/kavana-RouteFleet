@@ -4,7 +4,7 @@
 |---------|-------|
 | **Archivos de código** | ~40 |
 | **Líneas de código** | ~8.000 |
-| **Tests** | 40 (38 backend + 2 frontend, todos pasan) |
+| **Tests** | 40 | JWT, API REST, OCR (Tesseract), generación de POD (PDF), optimización de rutas, panel de administración |
 | **Commits** | +40 |
 | **Lenguajes** | JavaScript, JSX, CSS, YAML |
 

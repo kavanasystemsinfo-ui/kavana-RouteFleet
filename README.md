@@ -1,60 +1,102 @@
-# KAVANA RouteFleet
+# RouteFleet — Gestión de Repartos con Firma Digital (POD)
 
-Plataforma de gestión de repartos para empresas de reparto. Permite a los
-repartidores escanear albaranes, entregar con firma del cliente (POD) y a las
-oficinas hacer seguimiento de repartos por repartidor, ver firmas y KPIs.
+[![Tests](https://img.shields.io/badge/tests-pending-yellow)](docs/METRICS.md)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev)
+[![PWA](https://img.shields.io/badge/PWA-Offline‑First-5A0FC8)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
+[![Node](https://img.shields.io/badge/Node-20-339933?logo=nodedotjs)](https://nodejs.org)
+[![Render](https://img.shields.io/badge/Backend-Render-46E3B7?logo=render)](https://routefleet-api.onrender.com)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-## Arquitectura (todo fuera del VPS)
+---
 
-| Componente | Donde vive | URL |
-|---|---|---|
-| Backend API (Node/Express, store JSON) | Render | https://routefleet-api.onrender.com |
-| App del repartidor (React PWA) | GitHub Pages (`/app`) | https://routefleet.kavanasystems.com/app |
-| Panel oficinas "Torre de Control" (React) | GitHub Pages (`/`, rama `gh-pages-admin`) | https://routefleet.kavanasystems.com |
+## ⚡ 30 Segundos
 
-El VPS solo se usa para desarrollo/documentación. Los proyectos terminados
-viven en servicios externos (Render + GitHub Pages), igual que CleanStock.
+**Problema:** Las empresas de reparto pierden tiempo y dinero cuando los albaranes se extravían, las firmas de Recepción (POD) no se digitalizan y las oficinas no saben en tiempo real qué repartos están completados.
 
-## Estructura del repo
+**Solución:** Plataforma PWA donde el **repartidor** escanea albaranes, geolocaliza entregas y captura firma del cliente en su móvil (offline-first), y la **oficina** lo controla todo desde un panel con KPIs, histórico y trazabilidad.
+
+**Stack:** React PWA · Node + Express · Render · GitHub Pages · OCR (tesseract) · Firma digital canvas
+
+---
+
+## 🏗️ Arquitectura
 
 ```
-server/            Backend Express + store JSON (sin SQLite)
-  src/db.js              Capa de datos (stops, incidents, drivers, pods)
-  src/routes/api.js      Endpoints REST
-  src/services/          pdfService (POD), ocrService, aiService
-  tests/                 36 tests (node --test) incl. autenticación JWT
-client/            App del repartidor (Vite + React PWA, base /app/)
-client-admin/      Panel de oficinas Torre de Control (Vite + React, base /)
-.github/workflows/ deploy-combined.yml (panel + app en gh-pages-admin)
+REPARTIDOR (PWA móvil)            OFICINA (Torre de Control)
+┌──────────────────────┐          ┌────────────────────────┐
+│ Escanea albarán      │          │ KPIs por repartidor    │
+│ Firma cliente (POD)  │          │ Histórico de entregas  │
+│ Geolocalización      │          │ Ver firmas (POD)       │
+│ Offline-first        │          │ Panel administrativo   │
+└──────────┬───────────┘          └───────────┬────────────┘
+           │                                  │
+           └──────────────┬───────────────────┘
+                          ▼
+              ┌──────────────────────┐
+              │  API REST (Express)  │
+              │  + JWT Auth          │
+              │  + Almacenamiento    │
+              │    JSON + Firmas PNG │
+              └──────────┬───────────┘
+                         │
+              ┌──────────▼───────────┐
+              │  Render.com          │
+              │  + GitHub Pages      │
+              │  (frontends)         │
+              └──────────────────────┘
 ```
 
-## Desarrollo rápido
+## 🧠 Decisiones
+
+| Decisión | Alternativas | Elegida | Por qué |
+|----------|-------------|---------|---------|
+| Frontend repartidor | App nativa | **PWA** | Sin store, actualización instantánea, offline |
+| Almacenamiento | PostgreSQL, MongoDB | **JSON + fs** | Suficiente para el volumen, sin dependencias |
+| Firmas (POD) | librería externa | **Canvas nativo** | Sin coste, embedido en PNG de albarán |
+| OCR albaranes | Servicio cloud | **Tesseract.js** | Gratuito, offline, privacidad de datos |
+| Despliegue | VPS, Docker | **Render + GitHub Pages** | Sin mantenimiento de infraestructura |
+
+[📘 ADR-001 →](docs/adr/001-pwa-vs-native.md)
+
+## 📊 Estado
+
+| Scope | Estado |
+|-------|--------|
+| PWA repartidor (login, escaneo, firma, geoloc) | ✅ |
+| Panel oficina (KPIs, histórico, firmas) | ✅ |
+| Firma digital (POD) en PNG | ✅ |
+| OCR de albaranes (Tesseract.js) | ✅ |
+| Offline-first (Service Worker) | ✅ |
+| API REST (Express + JWT) | ✅ |
+| Tests | 🚧 Pendiente |
+| Clientes reales | ⚠️ Sin implantación real aún |
+
+## 📚 Documentación
+
+| Para qué | Dónde |
+|----------|-------|
+| Decisiones arquitectónicas | [`docs/adr/`](docs/adr/) |
+| Documentación técnica | [`docs/technical/`](docs/technical/) |
+| Evolución del proyecto | [`docs/HISTORY.md`](docs/HISTORY.md) |
+| Métricas de código | [`docs/METRICS.md`](docs/METRICS.md) |
+
+## 🚀 Cómo ejecutar
 
 ```bash
 # Backend
-cd server && npm install && npm test         # 36 tests verdes (incl. JWT)
-ROUTEFLEET_DB=/tmp/dev.json PORT=5001 node src/index.js
+cd server && npm install && npm start
 
 # App repartidor
-cd client && npm install && npm run dev       # http://localhost:5173
+cd client && npm install && npm run dev
 
-# Panel oficinas
-cd client-admin && npm install && npm run dev  # http://localhost:5173
+# Panel oficina
+cd client-admin && npm install && npm run dev
 ```
 
-## Deploy
+**Live demo:** [`https://routefleet.kavanasystems.com`](https://routefleet.kavanasystems.com)  
+**PIN repartidor demo:** `5855`
 
-- **Backend**: Render (Web Service, rama `main`, Root `server`, start `node src/index.js`).
-  Variables obligatorias: `JWT_SECRET` (cadena fuerte y aleatoria ≥32 chars — firma
-  los JWT). `OFFICE_PIN` (PIN oficina, def. `0000`), `CORS_ORIGINS` (def. github.io
-  + routefleet.kavanasystems.com). Todos los endpoints exigen JWT (oficina/driver).
-- **Frontends**: un único workflow `deploy-combined.yml` builda app y panel y
-  publica en `gh-pages-admin` (panel en `/`, app en `/app`). Secret repo
-  `VITE_API_BASE=https://routefleet-api.onrender.com`. En Settings → Pages:
-  rama `gh-pages-admin`, custom domain `routefleet.kavanasystems.com`.
-- **DNS**: CNAME `routefleet` → `kavanasystemsinfo-ui.github.io`.
+---
 
-## Documentación
-
-Ver `docs/` (ARQUITECTURA.md, BACKEND.md, APP_REPARTIDOR.md, PANEL_OFICINAS.md,
-DESPLIEGUE.md, API.md).
+*Proyecto diseñado con criterio arquitectónico propio, implementado con asistencia de IA.*  
+*Parte del ecosistema [Kavana Systems](https://github.com/kavanasystemsinfo-ui).*

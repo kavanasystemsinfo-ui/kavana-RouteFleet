@@ -1,6 +1,6 @@
 # RouteFleet — Gestión de Repartos con Firma Digital (POD)
 
-[![Tests](https://img.shields.io/badge/tests-pending-yellow)](docs/METRICS.md)
+[![Tests](https://img.shields.io/badge/tests-26%20passing-brightgreen)](docs/METRICS.md)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev)
 [![PWA](https://img.shields.io/badge/PWA-Offline‑First-5A0FC8)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 [![Node](https://img.shields.io/badge/Node-20-339933?logo=nodedotjs)](https://nodejs.org)

@@ -4,8 +4,8 @@
 |---------|-------|
 | **Archivos de código** | ~40 |
 | **Líneas de código** | ~8.000 |
-| **Tests** | Pendiente |
-| **Commits** | +30 |
+| **Tests** | 28 (26 pasan, 2 fallan) |
+| **Commits** | +40 |
 | **Lenguajes** | JavaScript, JSX, CSS, YAML |
 
 ## Stack

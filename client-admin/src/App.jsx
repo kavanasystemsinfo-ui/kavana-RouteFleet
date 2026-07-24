@@ -304,7 +304,7 @@ function StopsSection({ API_BASE, token, stops, drivers, driverName, filterDrive
               </tr>
             );
           })}
-          {stops.length === 0 && <tr><td style={td} colSpan={7} style={{color: C.muted}}>Sin paradas.</td></tr>}
+          {stops.length === 0 && <tr><td style={{...td, color: C.muted}} colSpan={7}>Sin paradas.</td></tr>}
         </tbody>
       </table>
     </div>
